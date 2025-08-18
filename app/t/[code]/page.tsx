@@ -1,5 +1,15 @@
 import Link from "next/link";
 
+// ✅ tell Next which codes to prebuild
+export const dynamicParams = false;
+export function generateStaticParams() {
+  return [
+    { code: "GG-DEMO-2025" },
+    { code: "DOURI-ROOTS" },
+    { code: "FAMILY-1234" },
+  ];
+}
+
 export default function TreeByCodePage({ params }: { params: { code: string } }) {
   const code = decodeURIComponent(params.code || "").toUpperCase();
 
