@@ -1,3 +1,11 @@
+export const dynamicParams = false;
+export function generateStaticParams() {
+  return [
+    { code: "GG-DEMO-2025" },
+    { code: "DOURI-ROOTS" },
+    { code: "FAMILY-1234" }
+  ];
+}
 import NFTByCodeClient from "../../../../components/NFTByCodeClient";
 
 export const dynamic = "force-static";
