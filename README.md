@@ -1,2 +1,0 @@
-# GenesisGates
-Family Tree
