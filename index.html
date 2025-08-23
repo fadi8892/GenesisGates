@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Genesis Gates</title>
+  <meta name="description" content="Genesis Gates — privacy-first family atlas."/>
+  <link rel="icon" type="image/png" href="assets/favicon-256.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors:{gg:{primary:'#5850EC'}}, borderRadius:{'2xl':'1rem'} } } }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>html,body{font-family:Inter,ui-sans-serif,system-ui,-apple-system}</style>
+</head>
+<body class="bg-zinc-50 text-zinc-900">
+  <main id="landing" class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-xl">
+      <div class="flex flex-col items-center">
+        <img src="assets/logo.png" class="w-24 h-24 object-contain mb-5" alt="Genesis Gates logo" onerror="this.style.display='none'"/>
+        <h1 class="text-4xl md:text-5xl font-semibold tracking-tight">Genesis Gates</h1>
+        <p class="mt-3 text-zinc-500 text-center max-w-md">Your family history. Decentralized. Immortalized.</p>
+      </div>
+      <div class="mt-8 rounded-2xl bg-white border shadow-sm p-5">
+        <label for="accessCode" class="block text-sm mb-2">Enter Access Code</label>
+        <div class="flex gap-2">
+          <input id="accessCode" class="flex-1 rounded-xl border px-3 py-3 uppercase" placeholder="ABCDE-ABCDE-ABCDE-ABCDE-ABCDE">
+          <button id="btnOpenCode" class="rounded-xl px-5 py-3 bg-gg-primary text-white">Unlock</button>
+        </div>
+        <p id="codeStatus" class="text-xs text-zinc-500 mt-2">Codes are signed & unguessable. Rotate anytime.</p>
+        <div class="flex items-center justify-between mt-4">
+          <button id="btnWallet" class="rounded-xl px-4 py-2 border">Sign in with Wallet</button>
+          <a id="docsLink" href="#" class="text-sm text-zinc-500 hover:underline">What is this?</a>
+        </div>
+      </div>
+      <p class="text-xs text-zinc-400 text-center mt-6">Private fields are encrypted client-side (owner setting) and visible only to invited wallets or code holders.</p>
+    </div>
+  </main>
+
+  <section id="app" class="max-w-7xl mx-auto p-6 hidden">
+    <header class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <img src="assets/logo.png" class="w-8 h-8 object-contain" alt="GG">
+        <div class="text-lg">Genesis Gates</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnOwner" class="rounded-xl border px-3 py-2">Owner Mode</button>
+        <button id="btnShowAccess" class="rounded-xl border px-3 py-2">Get Access Code</button>
+        <button id="btnLogout" class="rounded-xl border px-3 py-2">Log out</button>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-6 gap-2">
+      <button class="tab active rounded-2xl border px-3 py-2 bg-white" data-tab="overview">Overview</button>
+      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="tree">Family Tree</button>
+      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="map">Map</button>
+      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="ai">AI</button>
+      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="privacy">Privacy</button>
+      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- Overview -->
+    <div id="panel-overview" class="mt-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 rounded-2xl bg-white border shadow-sm p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-medium">Family (editable)</div>
+            <div class="flex gap-2">
+              <button id="btnExport" class="rounded-xl border px-3 py-2">Export JSON</button>
+              <label class="rounded-xl border px-3 py-2 cursor-pointer">Import JSON<input id="fileImport" type="file" accept="application/json" class="hidden"/></label>
+            </div>
+          </div>
+          <table class="w-full text-sm">
+            <thead><tr class="text-left text-zinc-500">
+              <th class="py-2">Name</th><th>Birthplace</th><th>Current City</th><th class="text-center">Links</th><th class="text-right">Actions</th>
+            </tr></thead>
+            <tbody id="peopleRows"></tbody>
+          </table>
+        </div>
+        <div class="rounded-2xl bg-white border shadow-sm p-5">
+          <div class="font-medium mb-2">Add / Edit Person</div>
+          <div class="space-y-2">
+            <input id="pName" class="w-full border rounded-xl px-3 py-2" placeholder="Full name">
+            <div class="grid grid-cols-2 gap-2">
+              <input id="pBirth" class="border rounded-xl px-3 py-2" placeholder="Birthplace (city, country)">
+              <input id="pCity" class="border rounded-xl px-3 py-2" placeholder="Current city">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="pLat" class="border rounded-xl px-3 py-2" placeholder="Lat">
+              <input id="pLon" class="border rounded-xl px-3 py-2" placeholder="Lon">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="pBLat" class="border rounded-xl px-3 py-2" placeholder="Birth Lat">
+              <input id="pBLon" class="border rounded-xl px-3 py-2" placeholder="Birth Lon">
+            </div>
+            <div class="flex gap-2">
+              <button id="btnSavePerson" class="flex-1 rounded-xl bg-gg-primary text-white px-4 py-2">Save</button>
+              <button id="btnClearForm" class="rounded-xl border px-3 py-2">Clear</button>
+            </div>
+            <input id="pId" type="hidden">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree -->
+    <div id="panel-tree" class="mt-6 hidden">
+      <div class="rounded-2xl bg-white border shadow-sm p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <input id="treeSearch" class="border rounded-xl px-3 py-2 w-64" placeholder="Search name…">
+            <button id="btnTreeSearch" class="rounded-xl border px-3 py-2">Find</button>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <label>Root:
+              <select id="rootSelect" class="border rounded-xl px-2 py-2"></select>
+            </label>
+            <button id="btnFitTree" class="rounded-xl border px-3 py-2">Fit</button>
+            <button id="btnCenterTree" class="rounded-xl border px-3 py-2">Center</button>
+            <button id="btnResetTree" class="rounded-xl border px-3 py-2">Reset</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-12 gap-3">
+          <div class="col-span-12 lg:col-span-10">
+            <div id="treeHost" class="w-full h-[640px] rounded-xl border bg-zinc-50 overflow-hidden relative"></div>
+          </div>
+          <div class="col-span-12 lg:col-span-2">
+            <div class="rounded-xl border p-3 bg-white">
+              <div class="font-medium mb-2">Mini‑map</div>
+              <canvas id="miniMap" width="180" height="120" class="border rounded-md w-full"></canvas>
+              <div class="text-xs text-zinc-500 mt-2">Drag/scroll in the tree. The blue box shows your viewport.</div>
+              <div class="mt-3 text-sm">
+                <div class="font-medium mb-1">Legend</div>
+                <div>• <span class="text-emerald-600">+ Parent</span> adds parent</div>
+                <div>• <span class="text-indigo-600">+ Child</span> adds child</div>
+                <div>• <span class="text-zinc-700">+ Spouse</span> adds partner</div>
+                <div>• Click name to collapse/expand branch</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="panel-map" class="mt-6 hidden">
+      <div class="rounded-2xl bg-white border shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="font-medium">Family Map</div>
+          <div class="text-sm text-zinc-500">Toggle: 
+            <label class="ml-2"><input type="checkbox" id="chkHeat" checked> Heatmap</label>
+            <label class="ml-4"><input type="checkbox" id="chkArcs" checked> Migration lines</label>
+          </div>
+        </div>
+        <div id="map" class="w-full h-[560px] rounded-xl border"></div>
+        <p class="text-xs text-zinc-500 mt-2">Heat shows where family lives; lines show birthplace → current city.</p>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div id="panel-ai" class="mt-6 hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="rounded-2xl bg-white border shadow-sm p-5">
+          <div class="font-medium">AI Photo Tagger (face detection)</div>
+          <div class="flex items-center gap-2 my-2">
+            <button id="btnLoadFace" class="rounded-xl border px-3 py-2">Load models</button>
+            <span id="faceStatus" class="text-xs text-zinc-500">Models: not loaded</span>
+          </div>
+          <input id="faceFile" type="file" accept="image/*" class="mb-2"/>
+          <div id="faceCanvas" class="rounded-xl border p-2 min-h-[140px] flex items-center justify-center text-xs text-zinc-500">Drop a portrait to detect faces…</div>
+          <div class="text-xs text-zinc-500 mt-2">Detected faces: <span id="faceCount">0</span></div>
+        </div>
+        <div class="rounded-2xl bg-white border shadow-sm p-5">
+          <div class="font-medium">AI Document Search (OCR)</div>
+          <input id="ocrFile" type="file" accept="image/*" class="mb-2"/>
+          <textarea id="ocrText" class="w-full h-40 text-sm border rounded-md p-2" placeholder="Extracted text will appear here…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-privacy" class="mt-6 hidden">
+      <div class="rounded-2xl bg-white border shadow-sm p-5 text-sm text-zinc-700">
+        <div class="font-medium mb-2">Privacy & Security</div>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>Client‑side encryption for private fields.</li>
+          <li>Access codes are signed tokens containing a tree id and expiry.</li>
+          <li>Data stored locally or exported to JSON/IPFS (coming step).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="panel-settings" class="mt-6 hidden">
+      <div class="rounded-2xl bg-white border shadow-sm p-5 text-sm text-zinc-700 space-y-2">
+        <div class="font-medium">Settings</div>
+        <div><label><input id="optLargeNodes" type="checkbox"> Larger nodes</label></div>
+        <div><label><input id="optShowSpouses" type="checkbox" checked> Show spouse/partner</label></div>
+        <div><label><input id="optCurvedLinks" type="checkbox" checked> Curved connectors</label></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modals -->
+  <div id="accessModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 w-[90%] max-w-xl shadow-xl">
+      <div class="font-medium mb-2">Share your tree securely</div>
+      <p class="text-sm text-zinc-500">Create a code anyone can use to view your tree.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <input id="shareTreeId" class="border rounded-xl px-3 py-2" placeholder="Tree ID (e.g., default)">
+        <input id="shareExpiry" class="border rounded-xl px-3 py-2" placeholder="Expiry (days)" value="14">
+      </div>
+      <div class="rounded-xl border p-3 flex items-center justify-between mt-3">
+        <code id="shareCode" class="text-sm font-mono break-all">—</code>
+        <button id="btnCopyShare" class="rounded-xl border px-3 py-2">Copy</button>
+      </div>
+      <div class="text-right mt-4">
+        <button id="btnGenCode" class="rounded-xl bg-gg-primary text-white px-4 py-2 mr-2">Generate</button>
+        <button id="btnCloseAccess" class="rounded-xl border px-3 py-2">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ownerModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 w-[90%] max-w-xl shadow-xl">
+      <div class="font-medium mb-2">Owner Mode</div>
+      <p class="text-sm text-zinc-500">Create or unlock your signing key to generate access codes. Stored locally in this browser.</p>
+      <div class="grid grid-cols-1 gap-3 mt-3">
+        <input id="ownerPass" class="border rounded-xl px-3 py-2" placeholder="Set/enter a passphrase">
+        <div class="flex gap-2">
+          <button id="btnOwnerCreate" class="flex-1 rounded-xl bg-gg-primary text-white px-4 py-2">Create/Replace Key</button>
+          <button id="btnOwnerClose" class="rounded-xl border px-3 py-2">Close</button>
+        </div>
+        <p id="ownerStatus" class="text-xs text-zinc-500">No key yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- External JS -->
+  <script src="app.js" defer></script>
+</body>
+</html>
