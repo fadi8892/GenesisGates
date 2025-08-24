@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Overview from '../components/Overview';
+import Tree3D from '../components/Tree3D';
+import Map from '../components/Map';
 
 function Dashboard() {
   const [name, setName] = useState('');
@@ -24,8 +27,10 @@ function Dashboard() {
       });
       const { cid } = await response.json();
       alert(`Published to IPFS with CID: ${cid}`);
+      return cid;
     } catch (error) {
       alert('Error publishing to IPFS');
+      return null;
     }
   };
 
@@ -97,6 +102,14 @@ function Dashboard() {
           <p className="text-xs text-zinc-500 mt-2">
             This sends your current tree as a JSON snapshot to IPFS (via web3.storage).
           </p>
+        </div>
+        <div className="rounded-2xl bg-white border shadow-sm p-5">
+          <div className="font-medium">Family Tree (3D)</div>
+          <Tree3D />
+        </div>
+        <div className="rounded-2xl bg-white border shadow-sm p-5">
+          <div className="font-medium">Map</div>
+          <Map />
         </div>
       </div>
     </section>
