@@ -8,7 +8,14 @@
   <link rel="icon" type="image/png" href="assets/favicon-256.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors:{gg:{primary:'#5850EC',accent:'#14b8a6'}}, borderRadius:{'2xl':'1rem'} } } }
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { gg: { primary:'#5850EC', accent:'#14b8a6' } },
+          borderRadius: { '2xl':'1rem' }
+        }
+      }
+    }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +35,12 @@
   </style>
 </head>
 <body class="bg-zinc-50 text-zinc-900">
+
   <!-- Landing -->
   <main id="landing" class="min-h-screen flex items-center justify-center p-6">
     <div class="w-full max-w-xl">
       <div class="flex flex-col items-center">
-        <img src="assets/logo.png" class="w-24 h-24 object-contain mb-5" alt="Genesis Gates logo" onerror="this.style.display='none'"/>
+        <img src="assets/logo.png" class="w-24 h-24 object-contain mb-5" alt="Genesis Gates logo"/>
         <h1 class="text-4xl md:text-5xl font-semibold tracking-tight text-center">Genesis Gates</h1>
         <p class="mt-3 text-zinc-500 text-center max-w-md">Your family history. Decentralized. Immortalized.</p>
       </div>
@@ -115,7 +123,7 @@
             <input id="pDeathPlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Death place (city, country)">
             <input id="pResidencePlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Residence (city, country)">
             <div class="col-span-2 flex gap-2">
-              <button id="btnLocatePlaces" class="rounded-xl border px-4 py-3" title="Geocode birth & residence">Locate</button>
+              <button id="btnLocatePlaces" class="rounded-xl border px-4 py-3">Locate</button>
               <button id="btnSavePerson" class="flex-1 rounded-xl bg-gg-primary text-white px-4 py-3">Save</button>
               <button id="btnClearForm" class="rounded-xl border px-4 py-3">Clear</button>
             </div>
@@ -145,8 +153,8 @@
             <button id="btnResetTree" class="rounded-xl border px-3 py-2">Reset</button>
           </div>
         </div>
-        <div id="treeHost" class="w-full h-[66vh] md:h-[680px] rounded-xl border bg-zinc-50 overflow-hidden relative touch-pan-y"></div>
-        <p class="text-xs text-zinc-500 mt-2">Tip: Tap a person to Quick‑Edit · Pinch to zoom · Drag to pan.</p>
+        <div id="treeHost" class="w-full h-[66vh] md:h-[680px] rounded-xl border bg-zinc-50 overflow-hidden relative"></div>
+        <p class="text-xs text-zinc-500 mt-2">Tip: Tap a person to Quick-Edit · Pinch to zoom · Drag to pan.</p>
       </div>
     </div>
 
@@ -162,7 +170,7 @@
             <span id="geoStatus" class="text-xs text-zinc-500"></span>
           </div>
         </div>
-        <div id="map" class="w-full h-[64vh] md:h-[560px] rounded-xl border touch-pan-y"></div>
+        <div id="map" class="w-full h-[64vh] md:h-[560px] rounded-xl border"></div>
       </div>
     </div>
 
