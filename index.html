@@ -76,7 +76,7 @@
       <button class="tab shrink-0 rounded-2xl border px-4 py-2 bg-white" data-tab="media">Media</button>
       <button class="tab shrink-0 rounded-2xl border px-4 py-2 bg-white" data-tab="sources">Sources</button>
       <button class="tab shrink-0 rounded-2xl border px-4 py-2 bg-white" data-tab="reports">Reports</button>
-      <button class="tab shrink-0 rounded-2xl border px-4 py-2 bg-white" data-tab="settings">Settings</button>
+      <button class="tab shrink-0 rounded-2xl border px-4 py-2 bg-white" data-tab="profiles">Profiles</button>
     </div>
 
     <!-- Overview -->
@@ -173,6 +173,13 @@
         <div id="map" class="w-full h-[64vh] md:h-[560px] rounded-xl border"></div>
       </div>
     </div>
+<!-- Profiles (full-page person profile lives here) -->
+<div id="panel-profiles" class="mt-6 hidden">
+  <div id="profileView" class="rounded-2xl bg-white border shadow-sm p-5">
+    <!-- populated by JS -->
+    <div class="text-zinc-500">Open a profile from Overview/Tree/Map, or paste an ID.</div>
+  </div>
+</div>
 
     <!-- Quick Edit Modal -->
     <div id="quickModal" class="fixed inset-0 bg-black/40 hidden items-end sm:items-center sm:justify-center">
