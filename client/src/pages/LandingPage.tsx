@@ -7,7 +7,7 @@ export default function LandingPage() {
 
   const handleUnlock = async () => {
     try {
-      const res = await fetch('https://your-backend.vercel.app/api/auth/verify', {
+      const res = await fetch('https://genesisgates.com/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
