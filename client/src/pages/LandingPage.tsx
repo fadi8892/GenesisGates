@@ -1,47 +1,47 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
-export default function LandingPage() {
-  const [code, setCode] = useState('');
+function LandingPage() {
   const navigate = useNavigate();
+  const [code, setCode] = useState('');
 
-  const handleUnlock = async () => {
-    try {
-      const res = await fetch('https://genesisgates.com/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
-      const data = await res.json();
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        navigate('/dashboard');
-      } else {
-        alert('Invalid code');
-      }
-    } catch {
-      alert('Verification failed');
+  const handleLogin = () => {
+    if (code === 'TEST123') {
+      localStorage.setItem('token', 'mock-token');
+      navigate('/dashboard');
+    } else {
+      alert('Invalid code');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="p-8 bg-white rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold mb-4">Genesis Gates</h1>
-        <p className="text-gray-600 mb-6">Your family history. Decentralized. Immortalized.</p>
-        <input
-          className="w-full p-2 border rounded mb-4"
-          placeholder="Enter Access Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
-        <button
-          className="w-full p-2 bg-blue-500 text-white rounded"
-          onClick={handleUnlock}
-        >
-          Unlock
-        </button>
+    <main className="min-h-screen flex items-center justify-center p-6 bg-zinc-50">
+      <div className="w-full max-w-md">
+        <div className="text-center">
+          <h1 className="text-3xl font-semibold">Genesis Gates</h1>
+          <p className="text-zinc-500 mt-2">Your family history — decentralized from day one.</p>
+        </div>
+        <div className="mt-6 grid gap-2">
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Enter code (e.g., TEST123)"
+            className="border rounded-xl px-3 py-2"
+          />
+          <button
+            onClick={handleLogin}
+            className="rounded-xl px-5 py-3 bg-[#5850EC] text-white"
+          >
+            Start New Tree
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500 text-center mt-2">
+          No wallet needed. We’ll publish to IPFS for you.
+        </p>
       </div>
-    </div>
+    </main>
   );
 }
+
+export default LandingPage;
