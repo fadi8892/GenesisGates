@@ -9,6 +9,6 @@ export default defineConfig({
   publicDir: 'public'
 });
 export default {
-  base: '/GenesisGates/',
+  base: '/',
   // ...your existing config
 }
