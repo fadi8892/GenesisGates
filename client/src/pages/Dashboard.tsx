@@ -1,57 +1,106 @@
-import { useState, useEffect } from 'react';
-import Overview from '../components/Overview';
-import Tree3D from '../components/Tree3D';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-export default function Dashboard() {
-  const [tab, setTab] = useState('overview');
-  const [treeData, setTreeData] = useState({ people: [], cid: null });
+function Dashboard() {
+  const [name, setName] = useState('');
+  const [birthplace, setBirthplace] = useState('');
+  const [people, setPeople] = useState<{ id: string; name: string; birthplace: string }[]>([]);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const cid = localStorage.getItem('treeCid');
-    if (cid) {
-      fetch(`https://genesisgates.com/api/tree/${cid}`)
-        .then(res => res.json())
-        .then(data => setTreeData({ ...data, cid }));
+  const addPerson = () => {
+    if (name) {
+      setPeople([...people, { id: Date.now().toString(), name, birthplace }]);
+      setName('');
+      setBirthplace('');
     }
-  }, []);
+  };
 
-  const saveTree = async (newTree: any) => {
-    const res = await fetch('https://genesisgates.com/api/tree/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ treeData: newTree }),
-    });
-    const { cid } = await res.json();
-    localStorage.setItem('treeCid', cid);
-    setTreeData({ ...newTree, cid });
+  const publishToIPFS = async () => {
+    try {
+      const response = await fetch('/api/tree/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ treeData: { people } })
+      });
+      const { cid } = await response.json();
+      alert(`Published to IPFS with CID: ${cid}`);
+    } catch (error) {
+      alert('Error publishing to IPFS');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <h1 className="text-2xl font-bold mb-4">Genesis Gates</h1>
-      <div className="flex gap-2 mb-4">
-        <button
-          className={`p-2 ${tab === 'overview' ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded`}
-          onClick={() => setTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={`p-2 ${tab === 'tree' ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded`}
-          onClick={() => setTab('tree')}
-        >
-          Family Tree
-        </button>
-        <button
-          className={`p-2 ${tab === 'map' ? 'bg-blue-500 text-white' : 'bg-gray-200'} rounded`}
-          onClick={() => setTab('map')}
-        >
-          Map
-        </button>
+    <section className="max-w-3xl mx-auto p-6 bg-zinc-50">
+      <header className="flex items-center justify-between">
+        <div className="text-lg font-medium">Genesis Gates</div>
+        <div className="text-sm text-zinc-500">guest@local</div>
+      </header>
+      <div className="mt-6 grid gap-4">
+        <div className="rounded-2xl bg-white border shadow-sm p-5">
+          <div className="flex items-center justify-between">
+            <div className="font-medium">People</div>
+            <div className="text-xs text-zinc-500">Local-first editing • Publish to IPFS when ready</div>
+          </div>
+          <div className="grid gap-2 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+                className="border rounded-xl px-3 py-2"
+              />
+              <input
+                value={birthplace}
+                onChange={(e) => setBirthplace(e.target.value)}
+                placeholder="Birthplace (optional)"
+                className="border rounded-xl px-3 py-2"
+              />
+              <button
+                onClick={addPerson}
+                className="rounded-xl border px-3 py-2 bg-white"
+              >
+                Add Person
+              </button>
+            </div>
+            <table className="min-w-full text-sm mt-2">
+              <thead>
+                <tr className="text-left text-zinc-500">
+                  <th className="py-2">Name</th>
+                  <th>Birthplace</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {people.map((person) => (
+                  <tr key={person.id}>
+                    <td className="py-2">{person.name}</td>
+                    <td>{person.birthplace}</td>
+                    <td className="text-right">
+                      <button className="text-blue-500">Edit</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-white border shadow-sm p-5">
+          <div className="flex items-center justify-between">
+            <div className="font-medium">Publish to IPFS</div>
+            <button
+              onClick={publishToIPFS}
+              className="rounded-xl px-4 py-2 bg-[#5850EC] text-white"
+            >
+              Publish Snapshot
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500 mt-2">
+            This sends your current tree as a JSON snapshot to IPFS (via web3.storage).
+          </p>
+        </div>
       </div>
-      {tab === 'overview' && <Overview treeData={treeData} onSave={saveTree} />}
-      {tab === 'tree' && <Tree3D treeData={treeData} />}
-      {tab === 'map' && <div>Map visualization coming soon.</div>}
-    </div>
+    </section>
   );
 }
+
+export default Dashboard;
