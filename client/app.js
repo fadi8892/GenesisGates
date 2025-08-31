@@ -724,7 +724,7 @@ async function loadScript(src) {
 }
 
 // ---------- D3 helpers
-function personById(id) { return state.people.find(p => p.id === id); }
+//function personById(id) { return state.people.find(p => p.id === id); }
 
 // ---------- Web3.Storage (IPFS) ----------
 async function publishToWeb3(silent=false) {
