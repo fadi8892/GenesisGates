@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // App shell
   qs("#btnLogout").addEventListener("click", () => location.reload());
   qs("#btnShare").addEventListener("click", createShareCode);
-  qs("#btnPublish").addEventListener("click", publishToWeb3);
+  qs("#btnPublish").addEventListener("click", () => publishToWeb3(false));
 
   // Tabs
   qsa(".tab").forEach((b) => b.addEventListener("click", () => switchTab(b.getAttribute("data-tab"))));
@@ -231,7 +231,8 @@ function renderPeople() {
   );
 
   // lock hint
-  qs("#editLock").classList.toggle("hidden", MODE === "owner");
+  const lock = qs("#editLock");
+  if (lock) lock.classList.toggle("hidden", MODE === "owner");
 }
 function loadToForm(id) {
   if (MODE !== "owner") return;
@@ -247,13 +248,6 @@ function loadToForm(id) {
   qs("#pResidencePlace").value = p.residencePlace || "";
 }
 function clearForm() { ["pId","pName","pSex","pBirthDate","pBirthPlace","pDeathDate","pDeathPlace","pResidencePlace"].forEach(id => { const el = qs("#"+id); if (el) el.value = ""; }); }
-async function locatePlaces() {
-  const birth = qs("#pBirthPlace").value.trim();
-  const resi  = qs("#pResidencePlace").value.trim();
-  if (birth) await geocodePlace(birth);
-  if (resi)  await geocodePlace(resi);
-  alert("Locations looked up. Click Save to persist.");
-}
 function savePerson() {
   if (MODE !== "owner") return;
   const id = qs("#pId").value || uid();
@@ -435,6 +429,7 @@ async function locateAll() {
   }
   saveState(state);
 }
+// SINGLE definition (the duplicate is removed)
 async function locatePlaces() {
   if (MODE !== "owner") return;
   await locateAll();
