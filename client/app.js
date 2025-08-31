@@ -45,24 +45,58 @@ if (!state.people || state.people.length === 0) {
 
 // ---------- Landing wiring ----------
 document.addEventListener("DOMContentLoaded", () => {
-  // View with share code
-  qs("#btnOpenCode").addEventListener("click", openWithCode);
+  // ---------- Global Share Codes via Vercel KV (serverless) ----------
+async function createShareCode() {
+  // 1) Ensure current state is saved to IPFS so code points to a CID
+  const cid = await saveDraftToIPFS();
+  if (!cid) return;
 
-  // Owner login / create (local-only)
-  const ownerKey = localStorage.getItem(KEY_OWNER);
-  qs("#ownerStatus").textContent = ownerKey ? "Key present" : "No key yet";
-  qs("#btnOwnerLogin").addEventListener("click", ownerLogin);
-  qs("#btnOwnerCreate").addEventListener("click", ownerCreate);
-
-  // Web3.Storage token (local-only)
-  const savedToken = localStorage.getItem(KEY_W3S) || "";
-  if (savedToken) qs("#w3sToken").value = savedToken;
-  qs("#btnSaveToken").addEventListener("click", () => {
-    const t = qs("#w3sToken").value.trim();
-    if (!t) return alert("Paste your Web3.Storage token");
-    localStorage.setItem(KEY_W3S, t);
-    alert("Token saved locally (browser only).");
+  // 2) Ask the API to mint a global code that maps to this CID
+  const res = await fetch("/api/share/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cid }),
   });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    alert("Failed to create share code.\n" + msg);
+    return;
+  }
+  const data = await res.json();
+  const code = data.code;
+  prompt("Share this code (works globally):", code);
+}
+
+async function openWithCode() {
+  const codeInput = qs("#viewCode").value.trim().toUpperCase();
+  const status = qs("#codeStatus");
+
+  if (!/^[A-Z2-7]{5}(-[A-Z2-7]{5}){4}$/.test(codeInput)) {
+    status.textContent = "Invalid code format.";
+    status.classList.add("text-red-600");
+    return;
+  }
+  status.textContent = "Resolving…";
+  status.classList.remove("text-red-600");
+
+  const res = await fetch(`/api/share/resolve?code=${encodeURIComponent(codeInput)}`);
+  if (!res.ok) {
+    status.textContent = "Unknown or expired code.";
+    status.classList.add("text-red-600");
+    return;
+  }
+  const { cid } = await res.json();
+
+  try {
+    await loadTreeFromCID(cid);
+    enterViewer();
+    status.textContent = "";
+  } catch {
+    status.textContent = "Failed to load CID.";
+    status.classList.add("text-red-600");
+  }
+}
+
 
   // Start a brand-new tree (blank) and optionally persist immediately to IPFS
   qs("#btnCreateNewTree").addEventListener("click", createEmptyTree);
