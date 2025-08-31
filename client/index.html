@@ -1,272 +1,290 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Genesis Gates</title>
-  <meta name="description" content="Genesis Gates — privacy-first family atlas with GEDCOM and advanced diagrams."/>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Genesis Gates</title>
+    <meta name="description" content="Genesis Gates — privacy-first family atlas with GEDCOM, maps, and IPFS publishing." />
 
-  <!-- Fav -->
-  <link rel="icon" type="image/svg+xml" href="/vite.svg">
+    <!-- Tailwind (CDN for instant styling) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { gg: { brand: "#6D28D9", ink: "#0F172A" } },
+            boxShadow: { soft: "0 10px 30px -12px rgba(17, 24, 39, .25)" },
+            borderRadius: { xl2: "1.25rem" },
+          },
+        },
+      };
+    </script>
 
-  <!-- Tailwind (CDN for zero-config deploy) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors:{gg:{primary:'#5850EC'}}, borderRadius:{'2xl':'1rem'} } } }
-  </script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet" />
+    <style>
+      html, body { font-family: Inter, ui-sans-serif, system-ui, -apple-system }
+    </style>
 
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>html,body{font-family:Inter,ui-sans-serif,system-ui,-apple-system}</style>
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  </head>
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-</head>
-<body class="bg-zinc-50 text-zinc-900">
-  <!-- Landing -->
-  <main id="landing" class="min-h-screen flex items-center justify-center p-6">
-    <div class="w-full max-w-xl">
-      <div class="flex flex-col items-center">
-        <img src="assets/logo.png" class="w-24 h-24 object-contain mb-5" alt="Genesis Gates logo" onerror="this.style.display='none'"/>
-        <h1 class="text-4xl md:text-5xl font-semibold tracking-tight">Genesis Gates</h1>
-        <p class="mt-3 text-zinc-500 text-center max-w-md">Your family history. Decentralized. Immortalized.</p>
-      </div>
-      <div class="mt-8 rounded-2xl bg-white border shadow-sm p-5">
-        <label for="accessCode" class="block text-sm mb-2">Enter Access Code</label>
-        <div class="flex gap-2">
-          <input id="accessCode" class="flex-1 rounded-xl border px-3 py-3 uppercase" placeholder="ABCDE-ABCDE-ABCDE-ABCDE-ABCDE">
-          <button id="btnOpenCode" class="rounded-xl px-5 py-3 bg-gg-primary text-white">Unlock</button>
-        </div>
-        <p id="codeStatus" class="text-xs text-zinc-500 mt-2">Codes are signed & unguessable. Rotate anytime.</p>
-        <div class="flex items-center justify-between mt-4">
-          <button id="btnWallet" class="rounded-xl px-4 py-2 border">Sign in with Wallet</button>
-          <a id="docsLink" href="#" class="text-sm text-zinc-500 hover:underline">What is this?</a>
-        </div>
-      </div>
-      <p class="text-xs text-zinc-400 text-center mt-6">Private fields can be encrypted client-side (owner setting) and shared with invited wallets or code holders.</p>
-    </div>
-  </main>
-
-  <!-- App -->
-  <section id="app" class="max-w-7xl mx-auto p-6 hidden">
-    <header class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2">
-        <img src="assets/logo.png" class="w-8 h-8 object-contain" alt="GG" onerror="this.style.display='none'">
-        <div class="text-lg">Genesis Gates</div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="btnOwner" class="rounded-xl border px-3 py-2">Owner Mode</button>
-        <button id="btnShowAccess" class="rounded-xl border px-3 py-2">Get Access Code</button>
-        <button id="btnLogout" class="rounded-xl border px-3 py-2">Log out</button>
-      </div>
-    </header>
-
-    <div class="grid grid-cols-7 gap-2">
-      <button class="tab active rounded-2xl border px-3 py-2 bg-white" data-tab="overview">Overview</button>
-      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="tree">Family Tree</button>
-      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="map">Map</button>
-      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="media">Media</button>
-      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="sources">Sources</button>
-      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="reports">Reports</button>
-      <button class="tab rounded-2xl border px-3 py-2 bg-white" data-tab="settings">Settings</button>
+  <body class="bg-slate-50 text-slate-900">
+    <!-- Decorative gradient -->
+    <div class="pointer-events-none fixed inset-0 -z-10 opacity-60">
+      <div class="absolute -top-24 -left-24 h-72 w-72 rounded-full blur-3xl bg-purple-200"></div>
+      <div class="absolute -bottom-24 -right-24 h-80 w-80 rounded-full blur-3xl bg-indigo-200"></div>
     </div>
 
-    <!-- Overview -->
-    <div id="panel-overview" class="mt-6">
-      <div class="rounded-2xl bg-white border shadow-sm p-5 mb-4">
-        <div class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-          ⚠️ <span class="font-medium">Important:</span> Importing a GEDCOM can replace your existing tree.
-          Please <button id="btnExportTip" class="underline">export a backup GEDCOM</button> first.
+    <!-- Landing -->
+    <main id="landing" class="min-h-screen max-w-6xl mx-auto px-6 py-16 flex flex-col justify-center">
+      <div class="text-center">
+        <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight text-gg-ink">Genesis Gates</h1>
+        <p class="mt-4 text-slate-600 text-lg">Your family history. Decentralized. Immortalized.</p>
+      </div>
+
+      <div class="mt-10 grid md:grid-cols-3 gap-6">
+        <!-- View-only with code -->
+        <div class="rounded-xl2 bg-white/90 backdrop-blur border shadow-soft p-6">
+          <div class="text-sm font-semibold text-slate-700">View a Tree (Code)</div>
+          <p class="text-sm text-slate-500 mt-1">Enter a share code to view a published tree.</p>
+          <div class="mt-4 flex gap-2">
+            <input id="viewCode" class="flex-1 rounded-xl border px-3 py-3 tracking-widest uppercase" placeholder="ABCDE-ABCDE-ABCDE-ABCDE-ABCDE" />
+            <button id="btnOpenCode" class="rounded-xl px-4 py-3 bg-gg-brand text-white">Open</button>
+          </div>
+          <div id="codeStatus" class="text-xs text-slate-500 mt-2"></div>
+        </div>
+
+        <!-- Login to edit -->
+        <div class="rounded-xl2 bg-white/90 backdrop-blur border shadow-soft p-6">
+          <div class="text-sm font-semibold text-slate-700">Log in to Edit</div>
+          <p class="text-sm text-slate-500 mt-1">Owner mode unlocks editing and publishing.</p>
+          <div class="mt-4 flex gap-2">
+            <input id="ownerPass" type="password" class="flex-1 rounded-xl border px-3 py-3" placeholder="Passphrase" />
+            <button id="btnOwnerLogin" class="rounded-xl px-4 py-3 border">Log in</button>
+          </div>
+          <div class="mt-2 flex justify-between text-xs">
+            <button id="btnOwnerCreate" class="underline">Create/Replace Key</button>
+            <span id="ownerStatus" class="text-slate-500">No key yet</span>
+          </div>
+        </div>
+
+        <!-- Start a new tree (IPFS) -->
+        <div class="rounded-xl2 bg-white/90 backdrop-blur border shadow-soft p-6">
+          <div class="text-sm font-semibold text-slate-700">Start a New Tree</div>
+          <p class="text-sm text-slate-500 mt-1">Save to Web3.Storage (IPFS). Token stays in your browser.</p>
+          <div class="mt-4 grid gap-2">
+            <input id="w3sToken" class="rounded-xl border px-3 py-3" placeholder="Paste Web3.Storage API token" />
+            <button id="btnSaveToken" class="rounded-xl px-4 py-3 border">Save Token</button>
+            <button id="btnCreateNewTree" class="rounded-xl px-4 py-3 bg-gg-brand text-white">Create Empty Tree</button>
+            <div class="text-xs text-slate-500">How to get a token: web3.storage → Account → API Tokens.</div>
+          </div>
         </div>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 rounded-2xl bg-white border shadow-sm p-5">
+    </main>
+
+    <!-- App Shell -->
+    <section id="app" class="hidden max-w-7xl mx-auto px-6 py-6">
+      <!-- Topbar -->
+      <header class="rounded-xl2 bg-white border shadow-soft p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-gg-brand/10 grid place-items-center text-gg-brand font-extrabold">GG</div>
+          <div class="text-lg font-semibold">Genesis Gates</div>
+          <div id="modeBadge" class="ml-3 text-xs rounded-full px-2 py-1 border">Viewer</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnShare" class="rounded-xl border px-3 py-2">Get Share Code</button>
+          <button id="btnPublish" class="rounded-xl px-3 py-2 bg-gg-brand text-white">Publish to IPFS</button>
+          <button id="btnLogout" class="rounded-xl border px-3 py-2">Log out</button>
+        </div>
+      </header>
+
+      <!-- Tabs -->
+      <div class="mt-4 grid grid-cols-7 gap-2">
+        <button class="tab active rounded-xl border bg-white px-3 py-2" data-tab="overview">Overview</button>
+        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="tree">Family Tree</button>
+        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="map">Map</button>
+        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="media">Media</button>
+        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="sources">Sources</button>
+        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="reports">Reports</button>
+        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- Overview -->
+      <div id="panel-overview" class="mt-4">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5 mb-4">
+          <div class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <span class="font-medium">Tip:</span> Before importing GEDCOM, export a backup.
+            <button id="btnBackup" class="underline ml-2">Export GEDCOM</button>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-6">
+          <!-- People table -->
+          <div class="lg:col-span-2 rounded-xl2 bg-white border shadow-soft p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="font-semibold">People</div>
+              <div class="flex gap-2">
+                <button id="btnExportJSON" class="rounded-xl border px-3 py-2">Export JSON</button>
+                <label class="rounded-xl border px-3 py-2 cursor-pointer">Import JSON
+                  <input id="fileImportJSON" type="file" accept="application/json" class="hidden" />
+                </label>
+                <button id="btnExportGED" class="rounded-xl border px-3 py-2">Export GEDCOM</button>
+                <label class="rounded-xl border px-3 py-2 cursor-pointer">Import GEDCOM
+                  <input id="fileImportGED" type="file" accept=".ged,text/plain" class="hidden" />
+                </label>
+              </div>
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-slate-500">
+                  <th class="py-2">Name</th>
+                  <th>Sex</th>
+                  <th>Birth</th>
+                  <th>Death</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="peopleRows"></tbody>
+            </table>
+          </div>
+
+          <!-- Form -->
+          <div class="rounded-xl2 bg-white border shadow-soft p-5">
+            <div class="font-semibold mb-2">Add / Edit Person</div>
+            <div id="editLock" class="hidden text-xs text-slate-500 mb-2">Viewer mode — log in to edit.</div>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="pName" class="form border rounded-xl px-3 py-2 col-span-2" placeholder="Full name" />
+              <select id="pSex" class="form border rounded-xl px-3 py-2">
+                <option value="">— Sex —</option>
+                <option value="M">Male</option><option value="F">Female</option><option value="U">Unknown</option>
+              </select>
+              <input id="pBirthDate" class="form border rounded-xl px-3 py-2" placeholder="Birth date (YYYY-MM-DD)" />
+              <input id="pBirthPlace" class="form border rounded-xl px-3 py-2 col-span-2" placeholder="Birthplace (city, country)" />
+              <input id="pDeathDate" class="form border rounded-xl px-3 py-2" placeholder="Death date (YYYY-MM-DD)" />
+              <input id="pDeathPlace" class="form border rounded-xl px-3 py-2 col-span-2" placeholder="Death place (city, country)" />
+              <input id="pResidencePlace" class="form border rounded-xl px-3 py-2 col-span-2" placeholder="Residence (city, country)" />
+              <div class="col-span-2 flex gap-2">
+                <button id="btnLocatePlaces" class="form rounded-xl border px-3 py-2" title="Geocode birth & residence">Locate</button>
+                <button id="btnSavePerson" class="form flex-1 rounded-xl bg-gg-brand text-white px-4 py-2">Save</button>
+                <button id="btnClearForm" class="form rounded-xl border px-3 py-2">Clear</button>
+              </div>
+              <input id="pId" type="hidden" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tree -->
+      <div id="panel-tree" class="mt-4 hidden">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5">
+          <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+            <div class="flex items-center gap-2">
+              <input id="treeSearch" class="border rounded-xl px-3 py-2 w-64" placeholder="Search name…" />
+              <button id="btnTreeSearch" class="rounded-xl border px-3 py-2">Find</button>
+            </div>
+            <div class="flex items-center gap-3 text-sm">
+              <span class="font-medium">Diagram:</span>
+              <label class="flex items-center gap-1"><input type="radio" name="diagram" value="tree" checked /> Tree</label>
+              <label class="flex items-center gap-1"><input type="radio" name="diagram" value="circles" /> Family Circles</label>
+              <label>Root:
+                <select id="rootSelect" class="border rounded-xl px-2 py-2"></select>
+              </label>
+              <button id="btnFitTree" class="rounded-xl border px-3 py-2">Fit</button>
+              <button id="btnCenterTree" class="rounded-xl border px-3 py-2">Center</button>
+              <button id="btnResetTree" class="rounded-xl border px-3 py-2">Reset</button>
+            </div>
+          </div>
+          <div id="treeHost" class="w-full h-[680px] rounded-xl border bg-gradient-to-br from-slate-50 to-white overflow-hidden relative"></div>
+          <p class="text-xs text-slate-500 mt-2">Scroll to zoom · Drag to pan · Click a name to collapse/expand · +P +C +S to add relatives</p>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div id="panel-map" class="mt-4 hidden">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5">
           <div class="flex items-center justify-between mb-3">
-            <div class="font-medium">People</div>
-            <div class="flex gap-2">
-              <button id="btnExportJSON" class="rounded-xl border px-3 py-2">Export JSON</button>
-              <label class="rounded-xl border px-3 py-2 cursor-pointer">Import JSON<input id="fileImportJSON" type="file" accept="application/json" class="hidden"/></label>
-              <button id="btnExportGED" class="rounded-xl border px-3 py-2">Export GEDCOM</button>
-              <label class="rounded-xl border px-3 py-2 cursor-pointer">Import GEDCOM<input id="fileImportGED" type="file" accept=".ged,text/plain" class="hidden"/></label>
+            <div class="font-semibold">Family Map</div>
+            <div class="flex items-center gap-3 text-sm text-slate-600">
+              <label><input type="checkbox" id="chkHeat" checked /> Heatmap</label>
+              <label><input type="checkbox" id="chkArcs" checked /> Migration lines</label>
+              <button id="btnGeoAll" class="rounded-xl border px-3 py-2">Geocode all places</button>
+              <span id="geoStatus" class="text-xs text-slate-500"></span>
             </div>
           </div>
-          <table class="w-full text-sm">
-            <thead><tr class="text-left text-zinc-500">
-              <th class="py-2">Name</th><th>Sex</th><th>Birth</th><th>Death</th><th class="text-right">Actions</th>
-            </tr></thead>
-            <tbody id="peopleRows"></tbody>
-          </table>
-        </div>
-
-        <div class="rounded-2xl bg-white border shadow-sm p-5">
-          <div class="font-medium mb-2">Add / Edit Person</div>
-          <div class="grid grid-cols-2 gap-2">
-            <input id="pName" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Full name">
-            <select id="pSex" class="border rounded-xl px-3 py-2">
-              <option value="">— Sex —</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="U">Unknown</option>
-            </select>
-            <input id="pBirthDate" class="border rounded-xl px-3 py-2" placeholder="Birth date (YYYY-MM-DD)">
-            <input id="pBirthPlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Birthplace (city, country)">
-            <input id="pDeathDate" class="border rounded-xl px-3 py-2" placeholder="Death date (YYYY-MM-DD)">
-            <input id="pDeathPlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Death place (city, country)">
-            <input id="pResidencePlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Residence (city, country)">
-            <div class="col-span-2 flex gap-2">
-              <button id="btnLocatePlaces" class="rounded-xl border px-3 py-2" title="Geocode birth & residence">Locate</button>
-              <button id="btnSavePerson" class="flex-1 rounded-xl bg-gg-primary text-white px-4 py-2">Save</button>
-              <button id="btnClearForm" class="rounded-xl border px-3 py-2">Clear</button>
-            </div>
-            <input id="pId" type="hidden">
-          </div>
+          <div id="map" class="w-full h-[560px] rounded-xl border"></div>
         </div>
       </div>
-    </div>
 
-    <!-- Tree -->
-    <div id="panel-tree" class="mt-6 hidden">
-      <div class="rounded-2xl bg-white border shadow-sm p-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <input id="treeSearch" class="border rounded-xl px-3 py-2 w-64" placeholder="Search name…">
-            <button id="btnTreeSearch" class="rounded-xl border px-3 py-2">Find</button>
-          </div>
-          <div class="flex items-center gap-3 text-sm">
-            <span class="font-medium">Diagram:</span>
-            <label class="flex items-center gap-1"><input type="radio" name="diagram" value="tree" checked> Tree</label>
-            <label class="flex items-center gap-1"><input type="radio" name="diagram" value="circles"> Family Circles</label>
-            <label>Root:
-              <select id="rootSelect" class="border rounded-xl px-2 py-2"></select>
+      <!-- Media -->
+      <div id="panel-media" class="mt-4 hidden">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold">Media & Attachments</div>
+            <label class="rounded-xl border px-3 py-2 cursor-pointer">Upload Images
+              <input id="fileMedia" type="file" accept="image/*" multiple class="hidden" />
             </label>
-            <button id="btnFitTree" class="rounded-xl border px-3 py-2">Fit</button>
-            <button id="btnCenterTree" class="rounded-xl border px-3 py-2">Center</button>
-            <button id="btnResetTree" class="rounded-xl border px-3 py-2">Reset</button>
           </div>
+          <div id="mediaGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
         </div>
-        <div id="treeHost" class="w-full h-[680px] rounded-xl border bg-zinc-50 overflow-hidden relative"></div>
-        <p class="text-xs text-zinc-500 mt-2">Tip: Scroll to zoom · Drag to pan · Click a name to collapse/expand.</p>
       </div>
-    </div>
 
-    <!-- Map -->
-    <div id="panel-map" class="mt-6 hidden">
-      <div class="rounded-2xl bg-white border shadow-sm p-5">
-        <div class="flex items-center justify-between mb-3">
-          <div class="font-medium">Family Map</div>
-          <div class="flex items-center gap-3 text-sm text-zinc-600">
-            <label class="ml-2"><input type="checkbox" id="chkHeat" checked> Heatmap</label>
-            <label class="ml-2"><input type="checkbox" id="chkArcs" checked> Migration lines</label>
-            <button id="btnGeoAll" class="rounded-xl border px-3 py-2">Geocode all places</button>
-            <span id="geoStatus" class="text-xs text-zinc-500"></span>
+      <!-- Sources -->
+      <div id="panel-sources" class="mt-4 hidden">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold">Sources & Citations</div>
+            <div class="flex gap-2">
+              <button id="btnAddSource" class="rounded-xl border px-3 py-2">+ Source</button>
+              <button id="btnExportSources" class="rounded-xl border px-3 py-2">Export .json</button>
+            </div>
           </div>
+          <div id="sourceList" class="space-y-2"></div>
         </div>
-        <div id="map" class="w-full h-[560px] rounded-xl border"></div>
-        <p class="text-xs text-zinc-500 mt-2">Heat shows residence locations; lines show birth → residence per person.</p>
       </div>
-    </div>
 
-    <!-- Media -->
-    <div id="panel-media" class="mt-6 hidden">
-      <div class="rounded-2xl bg-white border shadow-sm p-5">
-        <div class="flex items-center justify-between mb-3">
-          <div class="font-medium">Media & Attachments</div>
-          <label class="rounded-xl border px-3 py-2 cursor-pointer">Upload Images<input id="fileMedia" type="file" accept="image/*" multiple class="hidden"/></label>
-        </div>
-        <div id="mediaGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
-      </div>
-    </div>
-
-    <!-- Sources -->
-    <div id="panel-sources" class="mt-6 hidden">
-      <div class="rounded-2xl bg-white border shadow-sm p-5">
-        <div class="flex items-center justify-between mb-3">
-          <div class="font-medium">Sources & Citations</div>
-          <div class="flex gap-2">
-            <button id="btnAddSource" class="rounded-xl border px-3 py-2">+ Source</button>
-            <button id="btnExportSources" class="rounded-xl border px-3 py-2">Export .json</button>
+      <!-- Reports -->
+      <div id="panel-reports" class="mt-4 hidden">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5">
+          <div class="font-semibold mb-2">Reports</div>
+          <div class="grid md:grid-cols-3 gap-3">
+            <div class="rounded-xl border p-3">
+              <div class="font-medium">Ancestor Report</div>
+              <div class="text-sm text-slate-500">Pick a person and generate an ancestor list.</div>
+              <div class="mt-2"><select id="reportRootA" class="border rounded-xl px-2 py-2 w-full"></select></div>
+              <button id="btnReportA" class="rounded-xl border px-3 py-2 mt-2 w-full">Generate</button>
+            </div>
+            <div class="rounded-xl border p-3">
+              <div class="font-medium">Descendant Report</div>
+              <div class="text-sm text-slate-500">List descendants in outline form.</div>
+              <div class="mt-2"><select id="reportRootD" class="border rounded-xl px-2 py-2 w-full"></select></div>
+              <button id="btnReportD" class="rounded-xl border px-3 py-2 mt-2 w-full">Generate</button>
+            </div>
+            <div class="rounded-xl border p-3">
+              <div class="font-medium">Timeline</div>
+              <div class="text-sm text-slate-500">Birth/Death events sorted by date.</div>
+              <button id="btnReportT" class="rounded-xl border px-3 py-2 mt-2 w-full">Generate</button>
+            </div>
           </div>
+          <pre id="reportOut" class="mt-3 text-xs bg-slate-50 p-3 rounded-lg border max-h-[320px] overflow-auto whitespace-pre-wrap"></pre>
         </div>
-        <div id="sourceList" class="space-y-2"></div>
       </div>
-    </div>
 
-    <!-- Reports -->
-    <div id="panel-reports" class="mt-6 hidden">
-      <div class="rounded-2xl bg-white border shadow-sm p-5">
-        <div class="font-medium mb-2">Reports</div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div class="rounded-xl border p-3">
-            <div class="font-medium">Ancestor Report</div>
-            <div class="text-sm text-zinc-500">Pick a person and generate a textual ancestor list.</div>
-            <div class="mt-2"><select id="reportRootA" class="border rounded-xl px-2 py-2 w-full"></select></div>
-            <button id="btnReportA" class="rounded-xl border px-3 py-2 mt-2 w-full">Generate</button>
-          </div>
-          <div class="rounded-xl border p-3">
-            <div class="font-medium">Descendant Report</div>
-            <div class="text-sm text-zinc-500">List descendants in outline form.</div>
-            <div class="mt-2"><select id="reportRootD" class="border rounded-xl px-2 py-2 w-full"></select></div>
-            <button id="btnReportD" class="rounded-xl border px-3 py-2 mt-2 w-full">Generate</button>
-          </div>
-          <div class="rounded-xl border p-3">
-            <div class="font-medium">Timeline</div>
-            <div class="text-sm text-zinc-500">Birth/Death events sorted by date.</div>
-            <button id="btnReportT" class="rounded-xl border px-3 py-2 mt-2 w-full">Generate</button>
-          </div>
+      <!-- Settings -->
+      <div id="panel-settings" class="mt-4 hidden">
+        <div class="rounded-xl2 bg-white border shadow-soft p-5 text-sm text-slate-700 space-y-2">
+          <div class="font-semibold">Settings</div>
+          <div><label><input id="optLargeNodes" type="checkbox" /> Larger nodes</label></div>
+          <div><label><input id="optShowSpouses" type="checkbox" checked /> Show spouse/partner</label></div>
+          <div><label><input id="optCurvedLinks" type="checkbox" checked /> Curved connectors</label></div>
         </div>
-        <pre id="reportOut" class="mt-3 text-xs bg-zinc-50 p-3 rounded-lg border max-h-[320px] overflow-auto whitespace-pre-wrap"></pre>
       </div>
-    </div>
+    </section>
 
-    <!-- Settings -->
-    <div id="panel-settings" class="mt-6 hidden">
-      <div class="rounded-2xl bg-white border shadow-sm p-5 text-sm text-zinc-700 space-y-2">
-        <div class="font-medium">Settings</div>
-        <div><label><input id="optLargeNodes" type="checkbox"> Larger nodes</label></div>
-        <div><label><input id="optShowSpouses" type="checkbox" checked> Show spouse/partner</label></div>
-        <div><label><input id="optCurvedLinks" type="checkbox" checked> Curved connectors</label></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Modals -->
-  <div id="accessModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center">
-    <div class="bg-white rounded-2xl p-6 w-[90%] max-w-xl shadow-xl">
-      <div class="font-medium mb-2">Share your tree securely</div>
-      <p class="text-sm text-zinc-500">Create a code anyone can use to view your tree.</p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-        <input id="shareTreeId" class="border rounded-xl px-3 py-2" placeholder="Tree ID (e.g., default)">
-        <input id="shareExpiry" class="border rounded-xl px-3 py-2" placeholder="Expiry (days)" value="14">
-      </div>
-      <div class="rounded-xl border p-3 flex items-center justify-between mt-3">
-        <code id="shareCode" class="text-sm font-mono break-all">—</code>
-        <button id="btnCopyShare" class="rounded-xl border px-3 py-2">Copy</button>
-      </div>
-      <div class="text-right mt-4">
-        <button id="btnGenCode" class="rounded-xl bg-gg-primary text-white px-4 py-2 mr-2">Generate</button>
-        <button id="btnCloseAccess" class="rounded-xl border px-3 py-2">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="ownerModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center">
-    <div class="bg-white rounded-2xl p-6 w-[90%] max-w-xl shadow-xl">
-      <div class="font-medium mb-2">Owner Mode</div>
-      <p class="text-sm text-zinc-500">Create or unlock your signing key to generate access codes. Stored locally in this browser.</p>
-      <div class="grid grid-cols-1 gap-3 mt-3">
-        <input id="ownerPass" class="border rounded-xl px-3 py-2" placeholder="Set/enter a passphrase">
-        <div class="flex gap-2">
-          <button id="btnOwnerCreate" class="flex-1 rounded-xl bg-gg-primary text-white px-4 py-2">Create/Replace Key</button>
-          <button id="btnOwnerClose" class="rounded-xl border px-3 py-2">Close</button>
-        </div>
-        <p id="ownerStatus" class="text-xs text-zinc-500">No key yet.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Vite entry -->
-  <script type="module" src="/app.js"></script>
-</body>
+    <!-- Vite entry -->
+    <script type="module" src="/app.js"></script>
+  </body>
 </html>
