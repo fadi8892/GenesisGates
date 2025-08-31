@@ -40,6 +40,9 @@
     </div>
 
     <!-- Landing Controls -->
+    
+    <section id="landing" class="max-w-3xl mx-auto p-4 space-y-6">
+      
 <div class="space-y-6">
 
   <!-- View a Tree (Code) -->
@@ -68,6 +71,7 @@
     <div class="text-sm font-semibold mb-2">Start a New Tree</div>
     <button id="btnCreateNewTree" class="rounded-xl px-4 py-2 bg-amber-600 text-white">Start New</button>
   </div>
+ 
 
   <!-- Web3.Storage token -->
   <div class="rounded-2xl border p-4">
@@ -79,34 +83,120 @@
   </div>
 
 </div>
+      
+</section>
+      
+  <!-- App Shell (hidden until you enter Owner/Viewer) -->
+<section id="app" class="hidden">
+  <!-- Top bar -->
+  <div class="flex items-center justify-between px-4 py-3 border-b">
+    <div class="font-semibold">Genesis Gates</div>
+    <div class="text-xs">Mode: <span id="modeBadge">Viewer</span></div>
+    <div class="flex items-center gap-2">
+      <button id="btnShare" class="rounded-lg px-3 py-1.5 border">Share</button>
+      <button id="btnPublish" class="rounded-lg px-3 py-1.5 bg-indigo-600 text-white">Publish</button>
+      <button id="btnLogout" class="rounded-lg px-3 py-1.5 border">Exit</button>
+    </div>
+  </div>
 
-    <!-- App Shell -->
-    <section id="app" class="hidden max-w-7xl mx-auto px-6 py-6">
-      <!-- Topbar -->
-      <header class="rounded-xl2 bg-white border shadow-soft p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-xl bg-gg-brand/10 grid place-items-center text-gg-brand font-extrabold">GG</div>
-          <div class="text-lg font-semibold">Genesis Gates</div>
-          <div id="modeBadge" class="ml-3 text-xs rounded-full px-2 py-1 border">Viewer</div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button id="btnShare" class="rounded-xl border px-3 py-2">Get Share Code</button>
-          <button id="btnPublish" class="rounded-xl px-3 py-2 bg-gg-brand text-white">Publish to IPFS</button>
-          <button id="btnLogout" class="rounded-xl border px-3 py-2">Log out</button>
-        </div>
-      </header>
+  <!-- Tabs -->
+  <div class="flex gap-2 p-3 border-b">
+    <button class="tab rounded-lg px-3 py-1.5 bg-slate-100" data-tab="overview">Overview</button>
+    <button class="tab rounded-lg px-3 py-1.5" data-tab="tree">Tree</button>
+    <button class="tab rounded-lg px-3 py-1.5" data-tab="map">Map</button>
+    <button class="tab rounded-lg px-3 py-1.5" data-tab="media">Media</button>
+    <button class="tab rounded-lg px-3 py-1.5" data-tab="sources">Sources</button>
+    <button class="tab rounded-lg px-3 py-1.5" data-tab="reports">Reports</button>
+    <button class="tab rounded-lg px-3 py-1.5" data-tab="settings">Settings</button>
+  </div>
 
-      <!-- Tabs -->
-      <div class="mt-4 grid grid-cols-7 gap-2">
-        <button class="tab active rounded-xl border bg-white px-3 py-2" data-tab="overview">Overview</button>
-        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="tree">Family Tree</button>
-        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="map">Map</button>
-        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="media">Media</button>
-        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="sources">Sources</button>
-        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="reports">Reports</button>
-        <button class="tab rounded-xl border bg-white px-3 py-2" data-tab="settings">Settings</button>
+  <!-- Panels -->
+  <div id="panel-overview" class="p-4">
+    <!-- Minimal Overview table + form so app.js doesn’t error -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr><th>Name</th><th>Sex</th><th>Birth</th><th>Death</th><th></th></tr></thead>
+        <tbody id="peopleRows"></tbody>
+      </table>
+    </div>
+    <div id="editLock" class="text-xs text-amber-600 mt-2 hidden">Login to edit.</div>
+
+    <div class="mt-4 grid gap-2 max-w-xl">
+      <input id="pId" type="hidden" />
+      <input id="pName" class="form rounded border px-3 py-2" placeholder="Full name" />
+      <select id="pSex" class="form rounded border px-3 py-2"><option value="">— Sex —</option><option value="M">M</option><option value="F">F</option></select>
+      <input id="pBirthDate" class="form rounded border px-3 py-2" placeholder="Birth date (YYYY-MM-DD)" />
+      <input id="pBirthPlace" class="form rounded border px-3 py-2" placeholder="Birthplace (city, country)" />
+      <input id="pDeathDate" class="form rounded border px-3 py-2" placeholder="Death date (YYYY-MM-DD)" />
+      <input id="pDeathPlace" class="form rounded border px-3 py-2" placeholder="Death place (city, country)" />
+      <input id="pResidencePlace" class="form rounded border px-3 py-2" placeholder="Residence (city, country)" />
+      <div class="flex gap-2">
+        <button id="btnSavePerson" class="form rounded px-3 py-2 bg-emerald-600 text-white">Save</button>
+        <button id="btnClearForm" class="form rounded px-3 py-2 border">Clear</button>
       </div>
+      <div class="flex gap-2 mt-2">
+        <button id="btnLocatePlaces" class="form rounded px-3 py-2 border">Locate Places</button>
+        <input id="fileImportJSON" type="file" accept="application/json" class="hidden" />
+        <label for="fileImportJSON" class="form rounded px-3 py-2 border cursor-pointer">Import JSON</label>
+        <button id="btnExportJSON" class="form rounded px-3 py-2 border">Export JSON</button>
+        <input id="fileImportGED" type="file" accept=".ged,.GED" class="hidden" />
+        <label for="fileImportGED" class="form rounded px-3 py-2 border cursor-pointer">Import GEDCOM</label>
+        <button id="btnExportGED" class="form rounded px-3 py-2 border">Export GEDCOM</button>
+      </div>
+    </div>
+  </div>
 
+  <div id="panel-tree" class="p-0 hidden">
+    <div class="flex items-center gap-2 p-3 border-b">
+      <select id="rootSelect" class="rounded border px-2 py-1"></select>
+      <input id="treeSearch" class="rounded border px-2 py-1" placeholder="Search name…" />
+      <button id="btnTreeSearch" class="rounded px-2 py-1 border">Find</button>
+      <button id="btnFitTree" class="rounded px-2 py-1 border">Fit</button>
+      <button id="btnCenterTree" class="rounded px-2 py-1 border">Center</button>
+      <button id="btnResetTree" class="rounded px-2 py-1 border">Reset</button>
+      <label class="ml-4 text-sm"><input type="radio" name="diagram" value="tree" checked> Tree</label>
+      <label class="text-sm"><input type="radio" name="diagram" value="radial"> Radial</label>
+    </div>
+    <div id="treeHost" style="height: calc(100vh - 200px);"></div>
+  </div>
+
+  <div id="panel-map" class="p-0 hidden">
+    <div class="flex items-center gap-2 p-3 border-b">
+      <label class="text-sm"><input id="chkHeat" type="checkbox" checked> Heat</label>
+      <label class="text-sm"><input id="chkArcs" type="checkbox" checked> Arcs</label>
+      <button id="btnGeoAll" class="rounded px-2 py-1 border">Geocode all</button>
+      <span id="geoStatus" class="text-xs text-slate-500"></span>
+    </div>
+    <div id="map" style="height: calc(100vh - 200px);"></div>
+  </div>
+
+  <div id="panel-media" class="p-4 hidden">
+    <input id="fileMedia" type="file" multiple class="mb-3" />
+    <div id="mediaGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+  </div>
+
+  <div id="panel-sources" class="p-4 hidden">
+    <button id="btnAddSource" class="rounded px-3 py-1.5 border mb-3">Add Source</button>
+    <button id="btnExportSources" class="rounded px-3 py-1.5 border mb-3 ml-2">Export Sources JSON</button>
+    <div id="sourceList" class="grid gap-2"></div>
+  </div>
+
+  <div id="panel-reports" class="p-4 hidden">
+    <div class="flex gap-4 mb-3">
+      <div>Ancestor of <select id="reportRootA"></select> <button id="btnReportA" class="rounded px-2 py-1 border">Generate</button></div>
+      <div>Descendant of <select id="reportRootD"></select> <button id="btnReportD" class="rounded px-2 py-1 border">Generate</button></div>
+      <div><button id="btnReportT" class="rounded px-2 py-1 border">Timeline</button></div>
+    </div>
+    <pre id="reportOut" class="text-sm bg-slate-50 p-3 rounded-xl"></pre>
+  </div>
+
+  <div id="panel-settings" class="p-4 hidden">
+    <label class="block text-sm"><input id="optLargeNodes" type="checkbox"> Larger nodes</label>
+    <label class="block text-sm"><input id="optShowSpouses" type="checkbox" checked> Show spouses</label>
+    <label class="block text-sm"><input id="optCurvedLinks" type="checkbox" checked> Curved links</label>
+  </div>
+</section>
+    
       <!-- Overview -->
       <div id="panel-overview" class="mt-4">
         <div class="rounded-xl2 bg-white border shadow-soft p-5 mb-4">
