@@ -47,10 +47,54 @@
     </main>
 
     <!-- App -->
-    <section id="app" class="hidden max-w-7xl mx-auto p-6">
-      <h2 class="text-2xl font-bold mb-4">App Loaded</h2>
-      <div id="peopleContainer" class="space-y-2"></div>
-    </section>
+   <section id="app" class="hidden max-w-7xl mx-auto p-6">
+  <h2 class="text-2xl font-bold mb-4">Overview</h2>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- People table -->
+    <div class="lg:col-span-2 rounded-2xl bg-white border shadow-sm p-5">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-medium">People</div>
+      </div>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-zinc-500">
+            <th class="py-2">Name</th>
+            <th>Sex</th>
+            <th>Birth</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="peopleRows"></tbody>
+      </table>
+    </div>
+
+    <!-- Add/Edit form -->
+    <div class="rounded-2xl bg-white border shadow-sm p-5">
+      <div class="font-medium mb-2">Add / Edit Person</div>
+      <div class="grid grid-cols-2 gap-2">
+        <input id="pName" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Full name">
+        <select id="pSex" class="border rounded-xl px-3 py-2">
+          <option value="">— Sex —</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+          <option value="U">Unknown</option>
+        </select>
+        <input id="pBirthDate" class="border rounded-xl px-3 py-2" placeholder="Birth date (YYYY-MM-DD)">
+        <input id="pBirthPlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Birthplace (city, country)">
+        <input id="pDeathDate" class="border rounded-xl px-3 py-2" placeholder="Death date (YYYY-MM-DD)">
+        <input id="pDeathPlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Death place (city, country)">
+        <input id="pResidencePlace" class="border rounded-xl px-3 py-2 col-span-2" placeholder="Residence (city, country)">
+        <div class="col-span-2 flex gap-2">
+          <button id="btnSavePerson" class="flex-1 rounded-xl bg-indigo-600 text-white px-4 py-2">Save</button>
+          <button id="btnClearForm" class="rounded-xl border px-3 py-2">Clear</button>
+        </div>
+        <input id="pId" type="hidden">
+      </div>
+    </div>
+  </div>
+</section>
+
 
     <!-- Vite entry -->
     <script type="module" src="/app.js"></script>
