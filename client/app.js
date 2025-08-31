@@ -1,6 +1,7 @@
 // ===== Genesis Gates App =====
-// Viewer vs Owner modes, share code, GEDCOM/JSON, D3 tree, Leaflet map,
-// Web3.Storage publish/load (needs user token), slick UI with Tailwind.
+// Local-only auth (passphrase, token, codes) in localStorage.
+// All family data + media live on Web3.Storage/IPFS.
+// UI: Landing → Viewer/Owner app shell with Overview, Tree (D3), Map (Leaflet), Media, Sources, Reports, Settings.
 
 const qs  = (s) => document.querySelector(s);
 const qsa = (s) => Array.from(document.querySelectorAll(s));
@@ -8,30 +9,31 @@ const show = (el) => el.classList.remove("hidden");
 const hide = (el) => el.classList.add("hidden");
 const uid  = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-// ---- Persistent storage
-const STORAGE = "gg:state:v1";
-const KEY_OWNER = "gg:ownerKey";
-const KEY_W3S = "gg:w3sToken";
-const KEY_SHAREMAP = "gg:shareMap"; // { CODE: CID }
+// ---- Persistent storage keys (localStorage ONLY; no PII)
+const STORAGE       = "gg:state:v1";     // local working copy (for fast UX)
+const KEY_OWNER     = "gg:ownerKey";     // derived from passphrase; never leaves browser
+const KEY_W3S       = "gg:w3sToken";     // Web3.Storage API token (browser only)
+const KEY_SHAREMAP  = "gg:shareMap";     // { code: cid } demo mapping (browser only)
+const KEY_LAST_CID  = "gg:lastCID";      // last saved/published tree CID (pointer only)
 
+// ---- Local working state (kept in memory, mirrored to localStorage for quick loads)
 function saveState(s){ localStorage.setItem(STORAGE, JSON.stringify(s)); }
 function loadState(){ try { return JSON.parse(localStorage.getItem(STORAGE)) || {}; } catch { return {}; } }
 
-// ---- App state
 let state = Object.assign({
   people: [],
   links: [],       // { parentId, childId }
   spouses: [],     // [aId, bId]
   sources: [],
-  media: [],
+  media: [],       // [{ url: "ipfs-gateway-url", caption }]
   opts: { large:false, spouses:true, curved:true },
   geoCache: {}
 }, loadState());
 
 let MODE = "viewer"; // "viewer" | "owner"
 
-// Seed so page isn't empty
-if (state.people.length === 0) {
+// Seed minimal demo only if truly empty (for first-time feel)
+if (!state.people || state.people.length === 0) {
   const a = { id: uid(), sex: "M", name: "Alex Pioneer", birthDate: "1970-01-01", birthPlace: "Baghdad, Iraq", residencePlace: "San Diego, USA" };
   const b = { id: uid(), sex: "F", name: "Brianna Pioneer", birthDate: "1972-02-02", birthPlace: "Erbil, Iraq", residencePlace: "Phoenix, USA" };
   const c = { id: uid(), sex: "M", name: "Child A", birthDate: "1995-04-05", birthPlace: "San Diego, USA", residencePlace: "Austin, USA" };
@@ -43,35 +45,42 @@ if (state.people.length === 0) {
 
 // ---------- Landing wiring ----------
 document.addEventListener("DOMContentLoaded", () => {
-  // View with code
+  // View with share code
   qs("#btnOpenCode").addEventListener("click", openWithCode);
 
-  // Owner login / create
+  // Owner login / create (local-only)
   const ownerKey = localStorage.getItem(KEY_OWNER);
   qs("#ownerStatus").textContent = ownerKey ? "Key present" : "No key yet";
   qs("#btnOwnerLogin").addEventListener("click", ownerLogin);
   qs("#btnOwnerCreate").addEventListener("click", ownerCreate);
 
-  // Web3.Storage
+  // Web3.Storage token (local-only)
   const savedToken = localStorage.getItem(KEY_W3S) || "";
   if (savedToken) qs("#w3sToken").value = savedToken;
   qs("#btnSaveToken").addEventListener("click", () => {
     const t = qs("#w3sToken").value.trim();
     if (!t) return alert("Paste your Web3.Storage token");
     localStorage.setItem(KEY_W3S, t);
-    alert("Token saved locally.");
+    alert("Token saved locally (browser only).");
   });
+
+  // Start a brand-new tree (blank) and optionally persist immediately to IPFS
   qs("#btnCreateNewTree").addEventListener("click", createEmptyTree);
 
-  // App shell
+  // App shell actions
   qs("#btnLogout").addEventListener("click", () => location.reload());
   qs("#btnShare").addEventListener("click", createShareCode);
-  qs("#btnPublish").addEventListener("click", () => publishToWeb3(false));
+
+  // Publish current working tree to IPFS JSON (returns CID; stored in KEY_LAST_CID)
+  qs("#btnPublish").addEventListener("click", async () => {
+    const cid = await saveDraftToIPFS();
+    if (cid) alert("Published to IPFS.\nCID: " + cid);
+  });
 
   // Tabs
   qsa(".tab").forEach((b) => b.addEventListener("click", () => switchTab(b.getAttribute("data-tab"))));
 
-  // Overview actions
+  // Overview IO
   qs("#btnBackup").addEventListener("click", exportGEDCOM);
   qs("#btnExportJSON").addEventListener("click", exportJSON);
   qs("#fileImportJSON").addEventListener("change", importJSON);
@@ -92,9 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderPeople();
   refreshSelectors();
+
+  // If we have a last published/saved CID pointer, try to resume it (silent)
+  tryResumeLastCID();
 });
 
-// ---------- Mode helpers ----------
+// ---------- Mode helpers (local-only auth) ----------
 function enterViewer() {
   MODE = "viewer";
   qs("#modeBadge").textContent = "Viewer";
@@ -107,56 +119,48 @@ function enterOwner() {
   qsa(".form").forEach((el) => (el.disabled = false));
   showApp();
 }
-
 function showApp() {
   hide(qs("#landing"));
   show(qs("#app"));
-  // default to Overview
   switchTab("overview");
 }
-
 function ownerCreate() {
   const pass = qs("#ownerPass").value.trim();
   if (!pass) return alert("Enter a passphrase first.");
   const key = "GG-" + btoa(pass).slice(0, 16);
   localStorage.setItem(KEY_OWNER, key);
   qs("#ownerStatus").textContent = "Key created";
-  alert("Owner key created.");
+  alert("Owner key created (stored locally).");
 }
 function ownerLogin() {
   const pass = qs("#ownerPass").value.trim();
   if (!pass) return alert("Enter your passphrase.");
   const key = localStorage.getItem(KEY_OWNER);
   if (!key) return alert("No owner key yet. Click 'Create/Replace Key' first.");
-  if (key === "GG-" + btoa(pass).slice(0, 16)) {
-    enterOwner();
-  } else {
-    alert("Wrong passphrase.");
-  }
+  if (key === "GG-" + btoa(pass).slice(0, 16)) enterOwner();
+  else alert("Wrong passphrase.");
 }
 
-// ---------- Share code (CODE↔CID mapping stored locally for demo) ----------
+// ---------- Share code (local demo: code↔cid map in this browser only) ----------
 function genCode() {
   const base32 = "ABCDEFGHJKLMNPQRSTUVWXYZ234567";
   const group = () => Array.from({ length: 5 }, () => base32[Math.floor(Math.random() * base32.length)]).join("");
   return [group(), group(), group(), group(), group()].join("-");
 }
-function loadShareMap() {
-  try { return JSON.parse(localStorage.getItem(KEY_SHAREMAP)) || {}; } catch { return {}; }
-}
-function saveShareMap(map) {
-  localStorage.setItem(KEY_SHAREMAP, JSON.stringify(map));
-}
+function loadShareMap() { try { return JSON.parse(localStorage.getItem(KEY_SHAREMAP)) || {}; } catch { return {}; } }
+function saveShareMap(map) { localStorage.setItem(KEY_SHAREMAP, JSON.stringify(map)); }
+
 async function createShareCode() {
-  // Publish to IPFS first, then mint a code for that CID
-  const cid = await publishToWeb3(true);
+  // Ensure current working state is saved to IPFS so the code points to a CID
+  const cid = await saveDraftToIPFS();
   if (!cid) return;
   const map = loadShareMap();
   const code = genCode();
   map[code] = cid;
   saveShareMap(map);
-  prompt("Share code (anyone can view):", code);
+  prompt("Share code (anyone can view in this demo environment):", code);
 }
+
 async function openWithCode() {
   const code = qs("#viewCode").value.trim().toUpperCase();
   const status = qs("#codeStatus");
@@ -169,14 +173,14 @@ async function openWithCode() {
   status.classList.remove("text-red-600");
   const cid = (loadShareMap())[code];
   if (!cid) {
-    status.textContent = "Unknown code (this demo stores codes in your browser).";
+    status.textContent = "Unknown code (demo mapping is local to this browser).";
     status.classList.add("text-red-600");
     return;
   }
-  const ok = await loadFromWeb3(cid);
-  if (ok) {
+  try {
+    await loadTreeFromCID(cid);
     enterViewer();
-  } else {
+  } catch {
     status.textContent = "Failed to load CID.";
     status.classList.add("text-red-600");
   }
@@ -230,7 +234,6 @@ function renderPeople() {
     })
   );
 
-  // lock hint
   const lock = qs("#editLock");
   if (lock) lock.classList.toggle("hidden", MODE === "owner");
 }
@@ -271,7 +274,7 @@ function savePerson() {
   clearForm();
 }
 
-// ---------- JSON backup ----------
+// ---------- JSON backup (optional local backup; primary is IPFS) ----------
 function exportJSON() {
   const a = document.createElement("a");
   a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
@@ -299,7 +302,7 @@ function importJSON(e) {
   r.readAsText(f);
 }
 
-// ---------- GEDCOM ----------
+// ---------- GEDCOM import/export ----------
 function exportGEDCOM() {
   const xref = {};
   state.people.forEach((p, i) => (xref[p.id] = `@I${i + 1}@`));
@@ -351,14 +354,11 @@ function importGEDCOM(e) {
   const r = new FileReader();
   r.onload = () => {
     const lines = r.result.split(/\r?\n/);
-    const inds = {};
-    const fams = [];
+    const inds = {}; const fams = [];
     let current = null, type = null;
     lines.forEach((raw) => {
-      const line = raw.trim();
-      if (!line) return;
-      const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z0-9_]+)?\s*(.*)?$/);
-      if (!m) return;
+      const line = raw.trim(); if (!line) return;
+      const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z0-9_]+)?\s*(.*)?$/); if (!m) return;
       const level = +m[1], xref = m[2] || null, tag = m[3] || "", data = (m[4] || "").trim();
       if (level === 0 && xref && tag === "INDI") { current = { id: xref, data: {} }; type = "INDI"; inds[xref] = current.data; }
       else if (level === 0 && xref && tag === "FAM") { current = { id: xref, data: { children: [] } }; type = "FAM"; fams.push(current.data); }
@@ -399,7 +399,7 @@ function importGEDCOM(e) {
   r.readAsText(f);
 }
 
-// ---------- Geocoding ----------
+// ---------- Geocoding (OpenStreetMap Nominatim) ----------
 async function geocodePlace(place) {
   if (!place) return null;
   const key = place.trim();
@@ -429,7 +429,6 @@ async function locateAll() {
   }
   saveState(state);
 }
-// SINGLE definition (the duplicate is removed)
 async function locatePlaces() {
   if (MODE !== "owner") return;
   await locateAll();
@@ -562,7 +561,6 @@ function focusByName(q) {
   if (!q) return;
   const p = state.people.find(pp => (pp.name||"").toLowerCase().includes(q.toLowerCase()));
   if (!p) return alert("No match");
-  // (future: center on node by layout coords)
   fitGraph();
 }
 function addChild(parentId) {
@@ -619,7 +617,7 @@ function refreshMap() {
   heatLayer.setLatLngs(pts);
 }
 
-// ---------- Media ----------
+// ---------- Media (uploads go straight to Web3.Storage; state saves only links) ----------
 function renderMedia() {
   const grid = qs("#mediaGrid"); grid.innerHTML = "";
   (state.media || []).forEach((m) => {
@@ -628,18 +626,23 @@ function renderMedia() {
     div.innerHTML = `<img src="${m.url}" class="w-full h-32 object-cover"><div class="p-2 text-xs">${m.caption || ""}</div>`;
     grid.appendChild(div);
   });
+
   const file = qs("#fileMedia");
   if (!file._bound) {
     file._bound = true;
-    file.addEventListener("change", (e) => {
+    file.addEventListener("change", async (e) => {
       if (MODE !== "owner") return alert("Log in to add media.");
+      const token = localStorage.getItem(KEY_W3S);
+      if (!token) return alert("Save your Web3.Storage token first (on the landing card).");
+
       const files = e.target.files || [];
-      Array.from(files).forEach((f) => {
-        const url = URL.createObjectURL(f);
+      for (const f of Array.from(files)) {
+        const url = await uploadFileToWeb3(token, f);  // IPFS gateway URL
         state.media.push({ url, caption: f.name });
-      });
+      }
       saveState(state);
       renderMedia();
+      alert("Uploaded to Web3.Storage and linked to your tree.");
     });
   }
 }
@@ -709,9 +712,9 @@ function bindSettings() {
   spouses.checked = state.opts.spouses !== false;
   curved.checked  = state.opts.curved !== false;
 
-  large.onchange = () => { state.opts.large = large.checked; saveState(state); if (window._treeReady) drawGraph(); };
-  spouses.onchange = () => { state.opts.spouses = spouses.checked; saveState(state); if (window._treeReady) drawGraph(); };
-  curved.onchange = () => { state.opts.curved = curved.checked; saveState(state); if (window._treeReady) drawGraph(); };
+  large.onchange  = () => { state.opts.large = large.checked;   saveState(state); if (window._treeReady) drawGraph(); };
+  spouses.onchange= () => { state.opts.spouses = spouses.checked;saveState(state); if (window._treeReady) drawGraph(); };
+  curved.onchange = () => { state.opts.curved = curved.checked;  saveState(state); if (window._treeReady) drawGraph(); };
 }
 
 // ---------- Utils ----------
@@ -723,35 +726,24 @@ async function loadScript(src) {
   });
 }
 
-// ---------- D3 helpers
-//function personById(id) { return state.people.find(p => p.id === id); }
+// ---------- Web3.Storage / IPFS helpers ----------
 
-// ---------- Web3.Storage (IPFS) ----------
-async function publishToWeb3(silent=false) {
-  const token = localStorage.getItem(KEY_W3S);
-  if (!token) { if(!silent) alert("Save your Web3.Storage token first."); return null; }
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-  const cid = await uploadViaHTTP(token, blob, "genesis-gates.json");
-  if (!silent) alert("Published to IPFS.\nCID: " + cid);
-  return cid;
+// Upload a single binary file; return an IPFS gateway URL to that file
+async function uploadFileToWeb3(token, file) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const res = await fetch("https://api.web3.storage/upload", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  const out = await res.json();
+  const cid = out?.cid;
+  return `https://w3s.link/ipfs/${cid}/${encodeURIComponent(file.name)}`;
 }
-async function loadFromWeb3(cid) {
-  try {
-    const url = `https://w3s.link/ipfs/${cid}/genesis-gates.json`;
-    const res = await fetch(url);
-    if (!res.ok) return false;
-    const data = await res.json();
-    state = Object.assign(state, data);
-    saveState(state);
-    renderPeople(); refreshSelectors();
-    if (window._treeReady) drawGraph();
-    if (window._mapReady) refreshMap();
-    return true;
-  } catch {
-    return false;
-  }
-}
-// Minimal HTTP upload (no SDK) using Web3.Storage "car-less" API
+
+// Upload JSON state (tree) as a file; return folder CID and store KEY_LAST_CID
 async function uploadViaHTTP(token, fileBlob, filename) {
   const form = new FormData();
   form.append("file", fileBlob, filename);
@@ -763,4 +755,64 @@ async function uploadViaHTTP(token, fileBlob, filename) {
   if (!res.ok) throw new Error("Upload failed");
   const out = await res.json();
   return out?.cid;
+}
+
+// Save current working tree to IPFS JSON (draft/publish) and remember the CID locally
+async function saveDraftToIPFS() {
+  const token = localStorage.getItem(KEY_W3S);
+  if (!token) { alert("Save your Web3.Storage token first."); return null; }
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const cid = await uploadViaHTTP(token, blob, "genesis-gates.json");
+  localStorage.setItem(KEY_LAST_CID, cid);
+  return cid;
+}
+
+// Load a tree by CID (from IPFS JSON) into the app
+async function loadTreeFromCID(cid) {
+  const url = `https://w3s.link/ipfs/${cid}/genesis-gates.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch tree JSON from IPFS");
+  const data = await res.json();
+  state = Object.assign({
+    people: [], links: [], spouses: [],
+    sources: [], media: [], opts: { large:false, spouses:true, curved:true }, geoCache: {}
+  }, data);
+  saveState(state);
+  renderPeople(); refreshSelectors();
+  if (window._treeReady) drawGraph();
+  if (window._mapReady) refreshMap();
+}
+
+// On load, try to resume last saved/published CID
+async function tryResumeLastCID() {
+  const last = localStorage.getItem(KEY_LAST_CID);
+  if (!last) return;
+  try { await loadTreeFromCID(last); } catch {}
+}
+
+// Create a brand-new empty tree (local), then optionally persist to IPFS
+async function createEmptyTree() {
+  if (!confirm("Start a brand-new empty tree? This won’t touch your previous IPFS CIDs.")) return;
+  state = {
+    people: [],
+    links: [],
+    spouses: [],
+    sources: [],
+    media: [],
+    opts: { large: false, spouses: true, curved: true },
+    geoCache: {}
+  };
+  saveState(state);
+  renderPeople(); refreshSelectors();
+  if (window._treeReady) drawGraph();
+  if (window._mapReady) refreshMap();
+
+  const token = localStorage.getItem(KEY_W3S);
+  if (token) {
+    const cid = await saveDraftToIPFS();
+    if (cid) alert("New empty tree saved to IPFS.\nCID: " + cid);
+  } else {
+    alert("Blank tree ready. Save your Web3.Storage token to publish it.");
+  }
+  showApp();
 }
