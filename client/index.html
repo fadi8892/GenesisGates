@@ -6,19 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Genesis Gates</title>
 
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: { gg: { primary: "#5850EC" } },
-            borderRadius: { "2xl": "1rem" },
-          },
-        },
-      };
-    </script>
-
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,6 +28,7 @@
   </head>
 
   <body class="bg-zinc-50 text-zinc-900">
+    <!-- Landing -->
     <main id="landing" class="min-h-screen flex items-center justify-center p-6">
       <div class="w-full max-w-xl text-center">
         <h1 class="text-4xl md:text-5xl font-semibold tracking-tight">
@@ -51,18 +39,20 @@
         </p>
         <button
           id="btnWallet"
-          class="mt-8 rounded-xl px-5 py-3 bg-gg-primary text-white"
+          class="mt-8 rounded-xl px-5 py-3 bg-indigo-600 text-white"
         >
           Enter App
         </button>
       </div>
     </main>
 
+    <!-- App -->
     <section id="app" class="hidden max-w-7xl mx-auto p-6">
       <h2 class="text-2xl font-bold mb-4">App Loaded</h2>
       <div id="peopleContainer" class="space-y-2"></div>
     </section>
 
+    <!-- Vite entry -->
     <script type="module" src="/app.js"></script>
   </body>
 </html>
