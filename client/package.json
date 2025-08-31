@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --port 4173"
   },
-  "dependencies": {},
+  "dependencies": { "@vercel/kv": "^2.0.0"},
   "devDependencies": {
     "vite": "^5.4.0"
   }
