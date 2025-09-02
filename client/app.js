@@ -1,38 +1,32 @@
 // ===== Genesis Gates App =====
-// Local-only auth (passphrase, token, codes) in localStorage.
-// All family data + media live on Web3.Storage/IPFS.
-// UI: Landing → Viewer/Owner app shell with Overview, Tree (D3), Map (Leaflet), Media, Sources, Reports, Settings.
-
 const qs  = (s) => document.querySelector(s);
 const qsa = (s) => Array.from(document.querySelectorAll(s));
 const show = (el) => el.classList.remove("hidden");
 const hide = (el) => el.classList.add("hidden");
 const uid  = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-// ---- Persistent storage keys (localStorage ONLY; no PII)
-const STORAGE       = "gg:state:v1";     // local working copy (for fast UX)
-const KEY_OWNER     = "gg:ownerKey";     // derived from passphrase; never leaves browser
-const KEY_W3S       = "gg:w3sToken";     // Web3.Storage API token (browser only)
-const KEY_SHAREMAP  = "gg:shareMap";     // { code: cid } demo mapping (browser only)
-const KEY_LAST_CID  = "gg:lastCID";      // last saved/published tree CID (pointer only)
+// localStorage keys (no PII)
+const STORAGE       = "gg:state:v1";
+const KEY_OWNER     = "gg:ownerKey";
+const KEY_W3S       = "gg:w3sToken";
+const KEY_LAST_CID  = "gg:lastCID";
 
-// ---- Local working state (kept in memory, mirrored to localStorage for quick loads)
 function saveState(s){ localStorage.setItem(STORAGE, JSON.stringify(s)); }
 function loadState(){ try { return JSON.parse(localStorage.getItem(STORAGE)) || {}; } catch { return {}; } }
 
 let state = Object.assign({
   people: [],
-  links: [],       // { parentId, childId }
-  spouses: [],     // [aId, bId]
+  links: [],
+  spouses: [],
   sources: [],
-  media: [],       // [{ url: "ipfs-gateway-url", caption }]
+  media: [],       // [{ url, caption }]
   opts: { large:false, spouses:true, curved:true },
   geoCache: {}
 }, loadState());
 
-let MODE = "viewer"; // "viewer" | "owner"
+let MODE = "viewer";
 
-// Seed minimal demo only if truly empty (for first-time feel)
+// seed demo on first run
 if (!state.people || state.people.length === 0) {
   const a = { id: uid(), sex: "M", name: "Alex Pioneer", birthDate: "1970-01-01", birthPlace: "Baghdad, Iraq", residencePlace: "San Diego, USA" };
   const b = { id: uid(), sex: "F", name: "Brianna Pioneer", birthDate: "1972-02-02", birthPlace: "Erbil, Iraq", residencePlace: "Phoenix, USA" };
@@ -43,119 +37,75 @@ if (!state.people || state.people.length === 0) {
   saveState(state);
 }
 
-// ---------- Landing wiring ----------
+// -------- DOM Ready
 document.addEventListener("DOMContentLoaded", () => {
-  // ---------- Global Share Codes via Vercel KV (serverless) ----------
-async function createShareCode() {
-  // 1) Ensure current state is saved to IPFS so code points to a CID
-  const cid = await saveDraftToIPFS();
-  if (!cid) return;
-
-  // 2) Ask the API to mint a global code that maps to this CID
-  const res = await fetch("/api/share/create", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ cid }),
+  // landing actions
+  qs("#btnOpenCode")?.addEventListener("click", openWithCode);
+  const ownerKey = localStorage.getItem(KEY_OWNER);
+  if (qs("#ownerStatus")) qs("#ownerStatus").textContent = ownerKey ? "Key present" : "No key yet";
+  qs("#btnOwnerCreate")?.addEventListener("click", ownerCreate);
+  qs("#btnOwnerLogin")?.addEventListener("click", ownerLogin);
+  const savedToken = localStorage.getItem(KEY_W3S) || "";
+  if (savedToken && qs("#w3sToken")) qs("#w3sToken").value = savedToken;
+  qs("#btnSaveToken")?.addEventListener("click", () => {
+    const t = qs("#w3sToken").value.trim();
+    if (!t) return alert("Paste your Web3.Storage token");
+    localStorage.setItem(KEY_W3S, t);
+    alert("Token saved (browser only).");
   });
-  if (!res.ok) {
-    const msg = await res.text().catch(() => "");
-    alert("Failed to create share code.\n" + msg);
-    return;
-  }
-  const data = await res.json();
-  const code = data.code;
-  prompt("Share this code (works globally):", code);
-}
+  qs("#btnCreateNewTree")?.addEventListener("click", createEmptyTree);
 
-async function openWithCode() {
-  const codeInput = qs("#viewCode").value.trim().toUpperCase();
-  const status = qs("#codeStatus");
-
-  if (!/^[A-Z2-7]{5}(-[A-Z2-7]{5}){4}$/.test(codeInput)) {
-    status.textContent = "Invalid code format.";
-    status.classList.add("text-red-600");
-    return;
-  }
-  status.textContent = "Resolving…";
-  status.classList.remove("text-red-600");
-
-  const res = await fetch(`/api/share/resolve?code=${encodeURIComponent(codeInput)}`);
-  if (!res.ok) {
-    status.textContent = "Unknown or expired code.";
-    status.classList.add("text-red-600");
-    return;
-  }
-  const { cid } = await res.json();
-
-  try {
-    await loadTreeFromCID(cid);
-    enterViewer();
-    status.textContent = "";
-  } catch {
-    status.textContent = "Failed to load CID.";
-    status.classList.add("text-red-600");
-  }
-}
-
-
-  // Start a brand-new tree (blank) and optionally persist immediately to IPFS
-  qs("#btnCreateNewTree").addEventListener("click", createEmptyTree);
-
-  // App shell actions
-  qs("#btnLogout").addEventListener("click", () => location.reload());
-  qs("#btnShare").addEventListener("click", createShareCode);
-
-  // Publish current working tree to IPFS JSON (returns CID; stored in KEY_LAST_CID)
-  qs("#btnPublish").addEventListener("click", async () => {
+  // app shell
+  qs("#btnLogout")?.addEventListener("click", () => location.reload());
+  qs("#btnShare")?.addEventListener("click", createShareCode);
+  qs("#btnPublish")?.addEventListener("click", async () => {
     const cid = await saveDraftToIPFS();
     if (cid) alert("Published to IPFS.\nCID: " + cid);
   });
 
-  // Tabs
+  // tabs
   qsa(".tab").forEach((b) => b.addEventListener("click", () => switchTab(b.getAttribute("data-tab"))));
 
-  // Overview IO
-  qs("#btnBackup").addEventListener("click", exportGEDCOM);
-  qs("#btnExportJSON").addEventListener("click", exportJSON);
-  qs("#fileImportJSON").addEventListener("change", importJSON);
-  qs("#btnExportGED").addEventListener("click", exportGEDCOM);
-  qs("#fileImportGED").addEventListener("change", onGEDFile);
+  // overview I/O
+  qs("#btnExportJSON")?.addEventListener("click", exportJSON);
+  qs("#fileImportJSON")?.addEventListener("change", importJSON);
+  qs("#btnExportGED")?.addEventListener("click", exportGEDCOM);
+  qs("#fileImportGED")?.addEventListener("change", onGEDFile);
+  qs("#btnLocatePlaces")?.addEventListener("click", locatePlaces);
+  qs("#btnSavePerson")?.addEventListener("click", savePerson);
+  qs("#btnClearForm")?.addEventListener("click", clearForm);
 
-  qs("#btnLocatePlaces").addEventListener("click", locatePlaces);
-  qs("#btnSavePerson").addEventListener("click", savePerson);
-  qs("#btnClearForm").addEventListener("click", clearForm);
+  // reports
+  qs("#btnReportA")?.addEventListener("click", () => generateReport("ancestor"));
+  qs("#btnReportD")?.addEventListener("click", () => generateReport("descendant"));
+  qs("#btnReportT")?.addEventListener("click", () => generateReport("timeline"));
 
-  // Reports
-  qs("#btnReportA").addEventListener("click", () => generateReport("ancestor"));
-  qs("#btnReportD").addEventListener("click", () => generateReport("descendant"));
-  qs("#btnReportT").addEventListener("click", () => generateReport("timeline"));
-
-  // Settings
+  // settings
   bindSettings();
 
   renderPeople();
   refreshSelectors();
 
-  // If we have a last published/saved CID pointer, try to resume it (silent)
   tryResumeLastCID();
 });
 
-// ---------- Mode helpers (local-only auth) ----------
+// -------- Mode helpers
 function enterViewer() {
   MODE = "viewer";
-  qs("#modeBadge").textContent = "Viewer";
+  if (qs("#modeBadge")) qs("#modeBadge").textContent = "Viewer";
   qsa(".form").forEach((el) => (el.disabled = true));
   showApp();
 }
 function enterOwner() {
   MODE = "owner";
-  qs("#modeBadge").textContent = "Owner";
+  if (qs("#modeBadge")) qs("#modeBadge").textContent = "Owner";
   qsa(".form").forEach((el) => (el.disabled = false));
   showApp();
 }
 function showApp() {
-  hide(qs("#landing"));
-  show(qs("#app"));
+  const landing = qs("#landing"), app = qs("#app");
+  if (landing) hide(landing);
+  if (app) show(app);
   switchTab("overview");
 }
 function ownerCreate() {
@@ -163,8 +113,8 @@ function ownerCreate() {
   if (!pass) return alert("Enter a passphrase first.");
   const key = "GG-" + btoa(pass).slice(0, 16);
   localStorage.setItem(KEY_OWNER, key);
-  qs("#ownerStatus").textContent = "Key created";
-  alert("Owner key created (stored locally).");
+  if (qs("#ownerStatus")) qs("#ownerStatus").textContent = "Key created";
+  alert("Owner key created (local only).");
 }
 function ownerLogin() {
   const pass = qs("#ownerPass").value.trim();
@@ -175,55 +125,11 @@ function ownerLogin() {
   else alert("Wrong passphrase.");
 }
 
-// ---------- Share code (local demo: code↔cid map in this browser only) ----------
-function genCode() {
-  const base32 = "ABCDEFGHJKLMNPQRSTUVWXYZ234567";
-  const group = () => Array.from({ length: 5 }, () => base32[Math.floor(Math.random() * base32.length)]).join("");
-  return [group(), group(), group(), group(), group()].join("-");
-}
-function loadShareMap() { try { return JSON.parse(localStorage.getItem(KEY_SHAREMAP)) || {}; } catch { return {}; } }
-function saveShareMap(map) { localStorage.setItem(KEY_SHAREMAP, JSON.stringify(map)); }
-
-async function createShareCode() {
-  // Ensure current working state is saved to IPFS so the code points to a CID
-  const cid = await saveDraftToIPFS();
-  if (!cid) return;
-  const map = loadShareMap();
-  const code = genCode();
-  map[code] = cid;
-  saveShareMap(map);
-  prompt("Share code (anyone can view in this demo environment):", code);
-}
-
-async function openWithCode() {
-  const code = qs("#viewCode").value.trim().toUpperCase();
-  const status = qs("#codeStatus");
-  if (!/^[A-Z2-7]{5}(-[A-Z2-7]{5}){4}$/.test(code)) {
-    status.textContent = "Invalid code format.";
-    status.classList.add("text-red-600");
-    return;
-  }
-  status.textContent = "Resolving…";
-  status.classList.remove("text-red-600");
-  const cid = (loadShareMap())[code];
-  if (!cid) {
-    status.textContent = "Unknown code (demo mapping is local to this browser).";
-    status.classList.add("text-red-600");
-    return;
-  }
-  try {
-    await loadTreeFromCID(cid);
-    enterViewer();
-  } catch {
-    status.textContent = "Failed to load CID.";
-    status.classList.add("text-red-600");
-  }
-}
-
-// ---------- Tabs ----------
+// -------- Tabs
 function switchTab(name) {
   ["overview", "tree", "map", "media", "sources", "reports", "settings"].forEach((n) => {
-    qs("#panel-" + n).classList.toggle("hidden", n !== name);
+    const panel = qs("#panel-" + n);
+    if (panel) panel.classList.toggle("hidden", n !== name);
     const btn = qs('.tab[data-tab="' + n + '"]');
     if (btn) btn.classList.toggle("active", n === name);
   });
@@ -234,9 +140,10 @@ function switchTab(name) {
   if (name === "reports") refreshSelectors();
 }
 
-// ---------- People (Overview) ----------
+// -------- Overview
 function renderPeople() {
   const tbody = qs("#peopleRows");
+  if (!tbody) return;
   tbody.innerHTML = "";
   state.people.forEach((p) => {
     const tr = document.createElement("tr");
@@ -308,7 +215,7 @@ function savePerson() {
   clearForm();
 }
 
-// ---------- JSON backup (optional local backup; primary is IPFS) ----------
+// -------- JSON backup
 function exportJSON() {
   const a = document.createElement("a");
   a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
@@ -336,7 +243,7 @@ function importJSON(e) {
   r.readAsText(f);
 }
 
-// ---------- GEDCOM import/export ----------
+// -------- GEDCOM
 function exportGEDCOM() {
   const xref = {};
   state.people.forEach((p, i) => (xref[p.id] = `@I${i + 1}@`));
@@ -433,7 +340,7 @@ function importGEDCOM(e) {
   r.readAsText(f);
 }
 
-// ---------- Geocoding (OpenStreetMap Nominatim) ----------
+// -------- Geocoding (OSM)
 async function geocodePlace(place) {
   if (!place) return null;
   const key = place.trim();
@@ -469,7 +376,7 @@ async function locatePlaces() {
   if (window._mapReady) refreshMap();
 }
 
-// ---------- Tree (D3) ----------
+// -------- Tree (D3)
 let d3Loaded = false, svg, g, zoom, diagramMode = "tree";
 const collapsed = new Set();
 
@@ -483,11 +390,11 @@ async function loadTree() {
   zoom = d3.zoom().scaleExtent([0.3, 2.5]).on("zoom", (evt) => g.attr("transform", evt.transform));
   svg.call(zoom);
 
-  qs("#btnFitTree").addEventListener("click", fitGraph);
-  qs("#btnCenterTree").addEventListener("click", () => centerGraph(0.9));
-  qs("#btnResetTree").addEventListener("click", () => { collapsed.clear(); drawGraph(); fitGraph(); });
-  qs("#btnTreeSearch").addEventListener("click", () => { const q = qs("#treeSearch").value.trim(); if (q) focusByName(q); });
-  qs("#treeSearch").addEventListener("keydown", (e) => e.key === "Enter" && qs("#btnTreeSearch").click());
+  qs("#btnFitTree")?.addEventListener("click", fitGraph);
+  qs("#btnCenterTree")?.addEventListener("click", () => centerGraph(0.9));
+  qs("#btnResetTree")?.addEventListener("click", () => { collapsed.clear(); drawGraph(); fitGraph(); });
+  qs("#btnTreeSearch")?.addEventListener("click", () => { const q = qs("#treeSearch").value.trim(); if (q) focusByName(q); });
+  qs("#treeSearch")?.addEventListener("keydown", (e) => e.key === "Enter" && qs("#btnTreeSearch").click());
   qsa('input[name="diagram"]').forEach((r) => r.addEventListener("change", (e) => { diagramMode = e.target.value; drawGraph(); fitGraph(); }));
 
   drawGraph(); fitGraph();
@@ -549,8 +456,8 @@ function drawTree(data) {
 
   if (MODE === "owner") {
     nodes.append("text").attr("x", nodeW-52).attr("y", 14).attr("font-size","11px").attr("fill","#16A34A").style("cursor","pointer").text("+P").on("click", (e,d)=> addParent(d.data.id));
-    nodes.append("text").attr("x", nodeW-24).attr("y", 14).attr("font-size","11px").attr("fill","#5850EC").style("cursor","pointer").text("+C").on("click", (e,d)=> addChild(d.data.id));
-    nodes.append("text").attr("x", nodeW-86).attr("y", 14).attr("font-size","11px").attr("fill","#374151").style("cursor","pointer").text("+S").on("click", (e,d)=> addSpouse(d.data.id));
+    nodes.append("text").attr("x", nodeW-24").attr("y", 14).attr("font-size","11px").attr("fill","#5850EC").style("cursor","pointer").text("+C").on("click", (e,d)=> addChild(d.data.id));
+    nodes.append("text").attr("x", nodeW-86").attr("y", 14).attr("font-size","11px").attr("fill","#374151").style("cursor","pointer").text("+S").on("click", (e,d)=> addSpouse(d.data.id));
   }
 }
 function drawCircles(data) {
@@ -578,7 +485,7 @@ function drawCircles(data) {
   }
 }
 function fitGraph() {
-  const host = qs("#treeHost"); const svgEl = host.querySelector("svg"); if (!svgEl) return;
+  const host = qs("#treeHost"); const svgEl = host?.querySelector("svg"); if (!svgEl) return;
   const bb = g.node().getBBox(); const margin = 40;
   const { width, height } = host.getBoundingClientRect();
   const scale = Math.max(0.3, Math.min(2.5, Math.min((width-margin)/bb.width, (height-margin)/bb.height)));
@@ -587,7 +494,7 @@ function fitGraph() {
   d3.select(svgEl).transition().duration(400).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 function centerGraph(scale=0.9) {
-  const host = qs("#treeHost"); const svgEl = host.querySelector("svg"); if (!svgEl) return;
+  const host = qs("#treeHost"); const svgEl = host?.querySelector("svg"); if (!svgEl) return;
   const { width, height } = host.getBoundingClientRect();
   d3.select(svgEl).transition().duration(300).call(zoom.transform, d3.zoomIdentity.translate(width*0.05, height*0.05).scale(scale));
 }
@@ -619,7 +526,7 @@ function addSpouse(aId) {
   saveState(state); renderPeople(); refreshSelectors(); if (window._treeReady) drawGraph();
 }
 
-// ---------- Map (Leaflet + heat + arcs) ----------
+// -------- Map (Leaflet)
 let map, heatLayer, arcLayerGroup;
 async function loadMap() {
   await loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js");
@@ -633,9 +540,9 @@ function initMap() {
   heatLayer = L.heatLayer([], { radius: 22, blur: 18, maxZoom: 10 }).addTo(map);
   arcLayerGroup = L.layerGroup().addTo(map);
   refreshMap();
-  qs("#chkHeat").addEventListener("change", () => { if (qs("#chkHeat").checked) heatLayer.addTo(map); else map.removeLayer(heatLayer); });
-  qs("#chkArcs").addEventListener("change", () => { if (qs("#chkArcs").checked) arcLayerGroup.addTo(map); else map.removeLayer(arcLayerGroup); });
-  qs("#btnGeoAll").addEventListener("click", async () => { qs("#geoStatus").textContent = "Geocoding…"; await locateAll(); refreshMap(); qs("#geoStatus").textContent = "Done."; setTimeout(()=>qs("#geoStatus").textContent="", 1500); });
+  qs("#chkHeat")?.addEventListener("change", () => { if (qs("#chkHeat").checked) heatLayer.addTo(map); else map.removeLayer(heatLayer); });
+  qs("#chkArcs")?.addEventListener("change", () => { if (qs("#chkArcs").checked) arcLayerGroup.addTo(map); else map.removeLayer(arcLayerGroup); });
+  qs("#btnGeoAll")?.addEventListener("click", async () => { qs("#geoStatus").textContent = "Geocoding…"; await locateAll(); refreshMap(); qs("#geoStatus").textContent = "Done."; setTimeout(()=>qs("#geoStatus").textContent="", 1500); });
 }
 function refreshMap() {
   if (!heatLayer || !arcLayerGroup) return;
@@ -644,16 +551,17 @@ function refreshMap() {
     const rLat = parseFloat(p.rLat), rLon = parseFloat(p.rLon);
     const bLat = parseFloat(p.bLat), bLon = parseFloat(p.bLon);
     if (Number.isFinite(rLat) && Number.isFinite(rLon)) pts.push([rLat, rLon, 0.7]);
-    if (qs("#chkArcs").checked && Number.isFinite(rLat) && Number.isFinite(rLon) && Number.isFinite(bLat) && Number.isFinite(bLon)) {
+    if (qs("#chkArcs")?.checked && Number.isFinite(rLat) && Number.isFinite(rLon) && Number.isFinite(bLat) && Number.isFinite(bLon)) {
       L.polyline([[bLat, bLon], [rLat, rLon]], { color: "#6D28D9", weight: 2, opacity: 0.85 }).addTo(arcLayerGroup);
     }
   });
   heatLayer.setLatLngs(pts);
 }
 
-// ---------- Media (uploads go straight to Web3.Storage; state saves only links) ----------
+// -------- Media (uploads go straight to Web3.Storage; state stores URLs)
 function renderMedia() {
-  const grid = qs("#mediaGrid"); grid.innerHTML = "";
+  const grid = qs("#mediaGrid"); if (!grid) return;
+  grid.innerHTML = "";
   (state.media || []).forEach((m) => {
     const div = document.createElement("div");
     div.className = "rounded-xl overflow-hidden border";
@@ -662,16 +570,15 @@ function renderMedia() {
   });
 
   const file = qs("#fileMedia");
-  if (!file._bound) {
+  if (file && !file._bound) {
     file._bound = true;
     file.addEventListener("change", async (e) => {
       if (MODE !== "owner") return alert("Log in to add media.");
       const token = localStorage.getItem(KEY_W3S);
-      if (!token) return alert("Save your Web3.Storage token first (on the landing card).");
-
+      if (!token) return alert("Save your Web3.Storage token first.");
       const files = e.target.files || [];
       for (const f of Array.from(files)) {
-        const url = await uploadFileToWeb3(token, f);  // IPFS gateway URL
+        const url = await uploadFileToWeb3(token, f);
         state.media.push({ url, caption: f.name });
       }
       saveState(state);
@@ -681,9 +588,10 @@ function renderMedia() {
   }
 }
 
-// ---------- Sources ----------
+// -------- Sources & Reports
 function renderSources() {
-  const list = qs("#sourceList"); list.innerHTML = "";
+  const list = qs("#sourceList"); if (!list) return;
+  list.innerHTML = "";
   (state.sources || []).forEach((s, i) => {
     const div = document.createElement("div");
     div.className = "rounded-xl border p-3";
@@ -691,7 +599,7 @@ function renderSources() {
     list.appendChild(div);
   });
   const btnAdd = qs("#btnAddSource");
-  if (!btnAdd._bound) {
+  if (btnAdd && !btnAdd._bound) {
     btnAdd._bound = true;
     btnAdd.addEventListener("click", () => {
       if (MODE !== "owner") return alert("Log in to add sources.");
@@ -704,7 +612,7 @@ function renderSources() {
     });
   }
   const btnExp = qs("#btnExportSources");
-  if (!btnExp._bound) {
+  if (btnExp && !btnExp._bound) {
     btnExp._bound = true;
     btnExp.addEventListener("click", () => {
       const a = document.createElement("a");
@@ -714,8 +622,6 @@ function renderSources() {
     });
   }
 }
-
-// ---------- Reports ----------
 function generateReport(kind) {
   let out = "";
   if (kind === "ancestor") {
@@ -736,22 +642,22 @@ function generateReport(kind) {
     events.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     out = events.map(e => `${e.date || "----"}  |  ${e.what}`).join("\n");
   }
-  qs("#reportOut").textContent = out || "(No data)";
+  const pre = qs("#reportOut"); if (pre) pre.textContent = out || "(No data)";
 }
 
-// ---------- Settings ----------
+// -------- Settings
 function bindSettings() {
   const large = qs("#optLargeNodes"), spouses = qs("#optShowSpouses"), curved = qs("#optCurvedLinks");
-  large.checked  = !!state.opts.large;
-  spouses.checked = state.opts.spouses !== false;
-  curved.checked  = state.opts.curved !== false;
+  if (large) large.checked  = !!state.opts.large;
+  if (spouses) spouses.checked = state.opts.spouses !== false;
+  if (curved) curved.checked  = state.opts.curved !== false;
 
-  large.onchange  = () => { state.opts.large = large.checked;   saveState(state); if (window._treeReady) drawGraph(); };
-  spouses.onchange= () => { state.opts.spouses = spouses.checked;saveState(state); if (window._treeReady) drawGraph(); };
-  curved.onchange = () => { state.opts.curved = curved.checked;  saveState(state); if (window._treeReady) drawGraph(); };
+  if (large) large.onchange  = () => { state.opts.large = large.checked;   saveState(state); if (window._treeReady) drawGraph(); };
+  if (spouses) spouses.onchange= () => { state.opts.spouses = spouses.checked;saveState(state); if (window._treeReady) drawGraph(); };
+  if (curved) curved.onchange = () => { state.opts.curved = curved.checked;  saveState(state); if (window._treeReady) drawGraph(); };
 }
 
-// ---------- Utils ----------
+// -------- Utils
 async function loadScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script"); s.src = src; s.defer = true;
@@ -760,9 +666,7 @@ async function loadScript(src) {
   });
 }
 
-// ---------- Web3.Storage / IPFS helpers ----------
-
-// Upload a single binary file; return an IPFS gateway URL to that file
+// -------- Web3.Storage / IPFS
 async function uploadFileToWeb3(token, file) {
   const form = new FormData();
   form.append("file", file, file.name);
@@ -776,8 +680,6 @@ async function uploadFileToWeb3(token, file) {
   const cid = out?.cid;
   return `https://w3s.link/ipfs/${cid}/${encodeURIComponent(file.name)}`;
 }
-
-// Upload JSON state (tree) as a file; return folder CID and store KEY_LAST_CID
 async function uploadViaHTTP(token, fileBlob, filename) {
   const form = new FormData();
   form.append("file", fileBlob, filename);
@@ -790,8 +692,6 @@ async function uploadViaHTTP(token, fileBlob, filename) {
   const out = await res.json();
   return out?.cid;
 }
-
-// Save current working tree to IPFS JSON (draft/publish) and remember the CID locally
 async function saveDraftToIPFS() {
   const token = localStorage.getItem(KEY_W3S);
   if (!token) { alert("Save your Web3.Storage token first."); return null; }
@@ -800,8 +700,6 @@ async function saveDraftToIPFS() {
   localStorage.setItem(KEY_LAST_CID, cid);
   return cid;
 }
-
-// Load a tree by CID (from IPFS JSON) into the app
 async function loadTreeFromCID(cid) {
   const url = `https://w3s.link/ipfs/${cid}/genesis-gates.json`;
   const res = await fetch(url);
@@ -816,26 +714,14 @@ async function loadTreeFromCID(cid) {
   if (window._treeReady) drawGraph();
   if (window._mapReady) refreshMap();
 }
-
-// On load, try to resume last saved/published CID
 async function tryResumeLastCID() {
   const last = localStorage.getItem(KEY_LAST_CID);
   if (!last) return;
   try { await loadTreeFromCID(last); } catch {}
 }
-
-// Create a brand-new empty tree (local), then optionally persist to IPFS
 async function createEmptyTree() {
   if (!confirm("Start a brand-new empty tree? This won’t touch your previous IPFS CIDs.")) return;
-  state = {
-    people: [],
-    links: [],
-    spouses: [],
-    sources: [],
-    media: [],
-    opts: { large: false, spouses: true, curved: true },
-    geoCache: {}
-  };
+  state = { people: [], links: [], spouses: [], sources: [], media: [], opts: { large: false, spouses: true, curved: true }, geoCache: {} };
   saveState(state);
   renderPeople(); refreshSelectors();
   if (window._treeReady) drawGraph();
@@ -849,4 +735,44 @@ async function createEmptyTree() {
     alert("Blank tree ready. Save your Web3.Storage token to publish it.");
   }
   showApp();
+}
+
+// -------- Global Share Codes via Upstash (Edge)
+async function createShareCode() {
+  const cid = await saveDraftToIPFS();
+  if (!cid) return;
+  const res = await fetch("/api/share/create", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cid }),
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    alert("Failed to create share code.\n" + msg);
+    return;
+  }
+  const data = await res.json();
+  prompt("Share this code (works globally):", data.code);
+}
+async function openWithCode() {
+  const codeInput = qs("#viewCode")?.value.trim().toUpperCase();
+  const status = qs("#codeStatus");
+  if (!/^[A-Z2-7]{5}(-[A-Z2-7]{5}){4}$/.test(codeInput)) {
+    if (status) { status.textContent = "Invalid code format."; status.classList.add("text-red-600"); }
+    return;
+  }
+  if (status) { status.textContent = "Resolving…"; status.classList.remove("text-red-600"); }
+  const res = await fetch(`/api/share/resolve?code=${encodeURIComponent(codeInput)}`);
+  if (!res.ok) {
+    if (status) { status.textContent = "Unknown or expired code."; status.classList.add("text-red-600"); }
+    return;
+  }
+  const { cid } = await res.json();
+  try {
+    await loadTreeFromCID(cid);
+    enterViewer();
+    if (status) status.textContent = "";
+  } catch {
+    if (status) { status.textContent = "Failed to load CID."; status.classList.add("text-red-600"); }
+  }
 }
