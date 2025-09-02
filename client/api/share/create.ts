@@ -1,13 +1,12 @@
 export const runtime = "edge";
 
-// Use your existing env var names from Upstash integration
 const REDIS_REST_URL =
   process.env.UPSTASH_REDIS_REST_URL ||
-  process.env.KV_REST_API_URL; // you have this
+  process.env.KV_REST_API_URL;
 
 const REDIS_REST_TOKEN =
   process.env.UPSTASH_REDIS_REST_TOKEN ||
-  process.env.KV_REST_API_TOKEN; // you have this (WRITE)
+  process.env.KV_REST_API_TOKEN;
 
 const headers = {
   "content-type": "application/json",
@@ -16,14 +15,12 @@ const headers = {
   "access-control-allow-headers": "content-type",
 };
 
-// Generate code like AAAAA-BBBBB-CCCCC-DDDDD-EEEEE
 function genCode(): string {
   const base32 = "ABCDEFGHJKLMNPQRSTUVWXYZ234567";
   const group = () => Array.from({ length: 5 }, () => base32[Math.floor(Math.random() * base32.length)]).join("");
   return [group(), group(), group(), group(), group()].join("-");
 }
 
-// Upstash REST helpers
 async function redisGet(key: string): Promise<string | null> {
   const r = await fetch(`${REDIS_REST_URL}/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: `Bearer ${REDIS_REST_TOKEN}` },
@@ -64,7 +61,7 @@ export default async function handler(req: Request) {
     return new Response(JSON.stringify({ error: "Missing 'cid' in JSON body" }), { status: 400, headers });
   }
 
-  // Try up to 5 times to avoid collisions
+  // avoid collisions
   let code = genCode();
   for (let i = 0; i < 5; i++) {
     const exists = await redisGet(`code:${code}`);
@@ -72,7 +69,7 @@ export default async function handler(req: Request) {
     code = genCode();
   }
 
-  // Store for 1 year
+  // store for 1 year
   const TTL = 60 * 60 * 24 * 365;
   const ok = await redisSet(`code:${code}`, cid, TTL);
   if (!ok) {
