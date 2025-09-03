@@ -13,20 +13,25 @@ function secret() {
   return s;
 }
 
-function normEmail(email: string) {
-  return email.trim().toLowerCase();
-}
-
-function normCode(code: string) {
-  return code.trim().replace(/\s+/g, '');
-}
-
-export async function startOtp(emailRaw: string) {
-  const email = normEmail(emailRaw);
+// Coerce any input to a normalized email string
+function normEmail(input: unknown) {
+  const email = String(input ?? '').trim().toLowerCase();
   if (!email || !email.includes('@')) throw new Error('Invalid email');
+  return email;
+}
+
+// Coerce any input to a 6-digit code (strip spaces)
+function normCode(input: unknown) {
+  const code = String(input ?? '').trim().replace(/\s+/g, '');
+  if (!/^\d{6}$/.test(code)) throw new Error('Invalid code');
+  return code;
+}
+
+export async function startOtp(emailRaw: unknown) {
+  const email = normEmail(emailRaw);
 
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
-  // store by normalized email
+  // store latest code for this email (10 min TTL)
   await kv.set(`otp:${email}`, code, { ex: 600 });
 
   await sendOtpEmail(email, code);
@@ -35,17 +40,14 @@ export async function startOtp(emailRaw: string) {
   return { email };
 }
 
-export async function verifyOtp(emailRaw: string, codeRaw: string) {
+export async function verifyOtp(emailRaw: unknown, codeRaw: unknown) {
   const email = normEmail(emailRaw);
   const code = normCode(codeRaw);
-
-  if (!email || !email.includes('@')) throw new Error('Invalid email');
-  if (!/^\d{6}$/.test(code)) throw new Error('Invalid code');
 
   const key = `otp:${email}`;
   const stored = await kv.get<string>(key);
 
-  if (!stored || normCode(stored) !== code) {
+  if (!stored || stored.toString().trim() !== code) {
     throw new Error('Invalid code');
   }
 
