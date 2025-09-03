@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { kv } from './kv';
 import { sql } from './db';
-import { sendOtpEmail } from './email'; // static import (deps installed)
+import { sendOtpEmail } from './email';
 
 const COOKIE = 'gg_session';
 
@@ -13,36 +13,54 @@ function secret() {
   return s;
 }
 
-export async function startOtp(email: string) {
+function normEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function normCode(code: string) {
+  return code.trim().replace(/\s+/g, '');
+}
+
+export async function startOtp(emailRaw: string) {
+  const email = normEmail(emailRaw);
   if (!email || !email.includes('@')) throw new Error('Invalid email');
+
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
+  // store by normalized email
   await kv.set(`otp:${email}`, code, { ex: 600 });
 
-  // Send email via Resend or SMTP (decided in sendOtpEmail by env vars)
   await sendOtpEmail(email, code);
 
-  // Optional: still echo code for testing if you set DEV_SHOW_OTP=1
   if (process.env.DEV_SHOW_OTP === '1') return { email, code };
   return { email };
 }
 
-export async function verifyOtp(email: string, code: string) {
-  const k = `otp:${email}`;
-  const v = await kv.get<string>(k);
-  if (!v || v !== code) throw new Error('Invalid code');
-  await kv.del(k);
+export async function verifyOtp(emailRaw: string, codeRaw: string) {
+  const email = normEmail(emailRaw);
+  const code = normCode(codeRaw);
+
+  if (!email || !email.includes('@')) throw new Error('Invalid email');
+  if (!/^\d{6}$/.test(code)) throw new Error('Invalid code');
+
+  const key = `otp:${email}`;
+  const stored = await kv.get<string>(key);
+
+  if (!stored || normCode(stored) !== code) {
+    throw new Error('Invalid code');
+  }
+
+  await kv.del(key);
 
   const { rows } = await sql`
     insert into users (email) values (${email})
-    on conflict (email) do update set email=excluded.email
-    returning *`;
-
+    on conflict (email) do update set email = excluded.email
+    returning *;
+  `;
   const user = rows[0];
-  const token = jwt.sign(
-    { userId: user.id, email: user.email },
-    secret(),
-    { expiresIn: '7d' }
-  );
+
+  const token = jwt.sign({ userId: user.id, email: user.email }, secret(), {
+    expiresIn: '7d',
+  });
 
   cookies().set(COOKIE, token, {
     httpOnly: true,
