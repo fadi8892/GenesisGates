@@ -2,7 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { kv } from './kv';
-import { sql } from './db';
+import { sql, ensureSchema } from './db';
 import { sendOtpEmail } from './email';
 
 const COOKIE = 'gg_session';
@@ -28,10 +28,10 @@ function normCode(input: unknown) {
 }
 
 export async function startOtp(emailRaw: unknown) {
+  await ensureSchema(); // make sure tables exist (safe to call repeatedly)
   const email = normEmail(emailRaw);
 
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
-  // store latest code for this email (10 min TTL)
   await kv.set(`otp:${email}`, code, { ex: 600 });
 
   await sendOtpEmail(email, code);
@@ -41,16 +41,15 @@ export async function startOtp(emailRaw: unknown) {
 }
 
 export async function verifyOtp(emailRaw: unknown, codeRaw: unknown) {
+  await ensureSchema(); // ensure before db writes
   const email = normEmail(emailRaw);
   const code = normCode(codeRaw);
 
   const key = `otp:${email}`;
   const stored = await kv.get<string>(key);
-
   if (!stored || stored.toString().trim() !== code) {
     throw new Error('Invalid code');
   }
-
   await kv.del(key);
 
   const { rows } = await sql`
@@ -64,7 +63,8 @@ export async function verifyOtp(emailRaw: unknown, codeRaw: unknown) {
     expiresIn: '7d',
   });
 
-  cookies().set(COOKIE, token, {
+  cookies().set(COOKIE, {
+    value: token,
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
