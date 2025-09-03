@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { kv } from './kv';
 import { sql } from './db';
-import { sendOtpEmail } from './email'; // static import, since deps are installed
+import { sendOtpEmail } from './email'; // static import (deps installed)
 
 const COOKIE = 'gg_session';
 
@@ -18,10 +18,10 @@ export async function startOtp(email: string) {
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
   await kv.set(`otp:${email}`, code, { ex: 600 });
 
-  // Send email via Resend or SMTP
+  // Send email via Resend or SMTP (decided in sendOtpEmail by env vars)
   await sendOtpEmail(email, code);
 
-  // If DEV_SHOW_OTP=1, still return code in JSON for debugging
+  // Optional: still echo code for testing if you set DEV_SHOW_OTP=1
   if (process.env.DEV_SHOW_OTP === '1') return { email, code };
   return { email };
 }
