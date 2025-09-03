@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { kv } from './kv';
 import { sql } from './db';
+import { sendOtpEmail } from './email'; // static import, since deps are installed
 
 const COOKIE = 'gg_session';
 
@@ -17,24 +18,12 @@ export async function startOtp(email: string) {
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
   await kv.set(`otp:${email}`, code, { ex: 600 });
 
-  const haveEmail = !!process.env.RESEND_API_KEY || !!process.env.SMTP_URL;
-  if (haveEmail) {
-    try {
-      // ⬇️ only import if configured, so build doesn’t require resend/nodemailer
-      const { sendOtpEmail } = await import('./email');
-      await sendOtpEmail(email, code);
-      if (process.env.DEV_SHOW_OTP === '1') return { email, code };
-      return { email };
-    } catch {
-      if (process.env.DEV_SHOW_OTP === '1') return { email, code };
-      throw new Error('Failed to send code email');
-    }
-  }
+  // Send email via Resend or SMTP
+  await sendOtpEmail(email, code);
 
+  // If DEV_SHOW_OTP=1, still return code in JSON for debugging
   if (process.env.DEV_SHOW_OTP === '1') return { email, code };
-  throw new Error(
-    'Email not configured. Set DEV_SHOW_OTP=1 to show the code in the API response, or set RESEND_API_KEY/SMTP_URL.'
-  );
+  return { email };
 }
 
 export async function verifyOtp(email: string, code: string) {
@@ -42,20 +31,37 @@ export async function verifyOtp(email: string, code: string) {
   const v = await kv.get<string>(k);
   if (!v || v !== code) throw new Error('Invalid code');
   await kv.del(k);
+
   const { rows } = await sql`
     insert into users (email) values (${email})
     on conflict (email) do update set email=excluded.email
     returning *`;
+
   const user = rows[0];
-  const token = jwt.sign({ userId: user.id, email: user.email }, secret(), { expiresIn: '7d' });
-  cookies().set(COOKIE, token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+  const token = jwt.sign(
+    { userId: user.id, email: user.email },
+    secret(),
+    { expiresIn: '7d' }
+  );
+
+  cookies().set(COOKIE, token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+
   return { ok: true };
 }
 
 export function getSessionOrNull() {
   const token = cookies().get(COOKIE)?.value;
   if (!token) return null;
-  try { return jwt.verify(token, secret()) as any; } catch { return null; }
+  try {
+    return jwt.verify(token, secret()) as any;
+  } catch {
+    return null;
+  }
 }
 
 export function requireSession() {
