@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/rateLimit';
 import { startOtp } from '@/lib/auth';
-
-export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
-    await rateLimit(`otp:${email}`, 5, 600);
-    const res = await startOtp(email);
-    return NextResponse.json(res, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed' }, { status: 400 });
+    const body = await req.json().catch(() => ({}));
+    const email = typeof body?.email === 'string' ? body.email : '';
+
+    if (!email || !email.includes('@')) {
+      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
+    }
+
+    const result = await startOtp(email);
+    return NextResponse.json(result, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message || 'Failed to start sign-in' },
+      { status: 400 }
+    );
   }
 }
