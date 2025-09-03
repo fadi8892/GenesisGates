@@ -20,7 +20,8 @@ export async function startOtp(email: string) {
   const haveEmail = !!process.env.RESEND_API_KEY || !!process.env.SMTP_URL;
   if (haveEmail) {
     try {
-      const { sendOtpEmail } = await import('./email'); // <-- dynamic, only if configured
+      // ⬇️ only import if configured, so build doesn’t require resend/nodemailer
+      const { sendOtpEmail } = await import('./email');
       await sendOtpEmail(email, code);
       if (process.env.DEV_SHOW_OTP === '1') return { email, code };
       return { email };
@@ -31,7 +32,9 @@ export async function startOtp(email: string) {
   }
 
   if (process.env.DEV_SHOW_OTP === '1') return { email, code };
-  throw new Error('Email not configured. Set DEV_SHOW_OTP=1 to show code in response, or configure RESEND_API_KEY/SMTP_URL.');
+  throw new Error(
+    'Email not configured. Set DEV_SHOW_OTP=1 to show the code in the API response, or set RESEND_API_KEY/SMTP_URL.'
+  );
 }
 
 export async function verifyOtp(email: string, code: string) {
