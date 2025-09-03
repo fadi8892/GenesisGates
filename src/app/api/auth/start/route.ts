@@ -3,12 +3,9 @@ import { startOtp } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const email = typeof body?.email === 'string' ? body.email : '';
-
-    if (!email || !email.includes('@')) {
-      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
-    }
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+    const email = body?.email; // pass raw; auth.ts will coerce & validate
 
     const result = await startOtp(email);
     return NextResponse.json(result, { status: 200 });
