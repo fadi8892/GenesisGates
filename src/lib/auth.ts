@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { kv } from './kv';
 import { sql } from './db';
+import { sendOtpEmail } from './email';
 
 const COOKIE = 'gg_session';
 
@@ -15,8 +16,25 @@ export async function startOtp(email: string) {
   if (!email || !email.includes('@')) throw new Error('Invalid email');
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
   await kv.set(`otp:${email}`, code, { ex: 600 });
-  // In dev, return the code; in prod, you would send via Resend/SMTP
-  return { email, code: process.env.NODE_ENV !== 'production' ? code : undefined };
+
+  // If email is configured, send it. Otherwise (or if DEV_SHOW_OTP=1), return the code.
+  const haveEmail = !!process.env.RESEND_API_KEY || !!process.env.SMTP_URL;
+  if (haveEmail) {
+    try {
+      await sendOtpEmail(email, code);
+      // If you still want to see the code in API while testing:
+      if (process.env.DEV_SHOW_OTP === '1') return { email, code };
+      return { email };
+    } catch (err) {
+      // Fall back to returning code if sending fails and toggle is on
+      if (process.env.DEV_SHOW_OTP === '1') return { email, code };
+      throw new Error('Failed to send code email');
+    }
+  }
+
+  // No email provider configured
+  if (process.env.DEV_SHOW_OTP === '1') return { email, code };
+  throw new Error('Email not configured. Set DEV_SHOW_OTP=1 to show code in response, or configure RESEND_API_KEY/SMTP_URL.');
 }
 
 export async function verifyOtp(email: string, code: string) {
@@ -24,24 +42,20 @@ export async function verifyOtp(email: string, code: string) {
   const v = await kv.get<string>(k);
   if (!v || v !== code) throw new Error('Invalid code');
   await kv.del(k);
-  // upsert user
-  const { rows } = await sql`insert into users (email) values (${email}) on conflict (email) do update set email=excluded.email returning *`;
+  const { rows } = await sql`
+    insert into users (email) values (${email})
+    on conflict (email) do update set email=excluded.email
+    returning *`;
   const user = rows[0];
   const token = jwt.sign({ userId: user.id, email: user.email }, secret(), { expiresIn: '7d' });
-  cookies().set(COOKIE, token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+  cookies().set('gg_session', token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
   return { ok: true };
 }
 
 export function getSessionOrNull() {
-  const cookieStore = cookies();
-  const token = cookieStore.get(COOKIE)?.value;
+  const token = cookies().get(COOKIE)?.value;
   if (!token) return null;
-  try {
-    const data = jwt.verify(token, secret()) as any;
-    return data;
-  } catch {
-    return null;
-  }
+  try { return jwt.verify(token, secret()) as any; } catch { return null; }
 }
 
 export function requireSession() {
