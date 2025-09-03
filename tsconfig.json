@@ -15,10 +15,14 @@
     "incremental": true,
     "types": ["@types/node", "@types/react", "@types/react-dom"],
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "paths": { "@/*": ["src/*"] }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
