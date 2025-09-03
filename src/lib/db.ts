@@ -1,18 +1,21 @@
-import { sql } from '@vercel/postgres';
+// src/lib/db.ts
+import { sql as vercelSql } from '@vercel/postgres';
 import { SQL_STATEMENTS } from './schema-sql';
 
-let initialized = false;
+// Re-export the Vercel Postgres sql tagged template
+export const sql = vercelSql;
+
+// Run simple, idempotent schema init once per runtime
+let _initialized = false;
 
 export async function ensureSchema() {
-  if (initialized) return;
+  if (_initialized) return;
   for (const stmt of SQL_STATEMENTS) {
     try {
-      await sql.query(stmt);
+      await sql`${stmt as any}`;
     } catch {
-      // ignore "already exists" etc.
+      // ignore individual statement failures to stay idempotent
     }
   }
-  initialized = true;
+  _initialized = true;
 }
-
-export { sql };
