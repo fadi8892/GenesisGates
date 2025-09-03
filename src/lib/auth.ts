@@ -63,8 +63,8 @@ export async function verifyOtp(emailRaw: unknown, codeRaw: unknown) {
     expiresIn: '7d',
   });
 
-  cookies().set(COOKIE, {
-    value: token,
+  // ✅ Correct overload: (name, value, options)
+  cookies().set(COOKIE, token, {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
