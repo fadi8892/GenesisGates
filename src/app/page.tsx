@@ -2,8 +2,8 @@
 import { useState } from 'react';
 
 export default function Landing() {
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
+  const [email, setEmail] = useState<any>('');  // accept any, coerce on send
+  const [code, setCode] = useState<any>('');    // accept any, coerce on send
   const [phase, setPhase] = useState<'start' | 'verify'>('start');
   const [devCode, setDevCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -13,10 +13,13 @@ export default function Landing() {
     setLoading(true);
     setErr(null);
     try {
+      const payload = {
+        email: String(email ?? '').trim().toLowerCase(),
+      };
       const r = await fetch('/api/auth/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Failed to send code');
@@ -33,13 +36,14 @@ export default function Landing() {
     setLoading(true);
     setErr(null);
     try {
+      const payload = {
+        email: String(email ?? '').trim().toLowerCase(),
+        code: String(code ?? '').trim(),
+      };
       const r = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          code: code.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Invalid code');
