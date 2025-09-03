@@ -2,20 +2,23 @@
 import { sql as vercelSql } from '@vercel/postgres';
 import { SQL_STATEMENTS } from './schema-sql';
 
-// Re-export the Vercel Postgres sql tagged template
+// Re-export for app code
 export const sql = vercelSql;
 
-// Run simple, idempotent schema init once per runtime
-let _initialized = false;
+// Run schema once per serverless runtime
+let _initPromise: Promise<void> | null = null;
 
 export async function ensureSchema() {
-  if (_initialized) return;
-  for (const stmt of SQL_STATEMENTS) {
-    try {
-      await sql`${stmt as any}`;
-    } catch {
-      // ignore individual statement failures to stay idempotent
+  if (_initPromise) return _initPromise;
+  _initPromise = (async () => {
+    for (const stmt of SQL_STATEMENTS) {
+      try {
+        // Use query() to execute dynamic DDL strings
+        await sql.query(stmt);
+      } catch {
+        // ignore individual failures to keep init idempotent across providers
+      }
     }
-  }
-  _initialized = true;
+  })();
+  return _initPromise;
 }
