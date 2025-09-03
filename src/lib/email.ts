@@ -13,7 +13,7 @@ export async function sendOtpEmail(to: string, code: string) {
     return;
   }
 
-  // Optional: SMTP if you prefer (set SMTP_URL like: smtps://user:pass@smtp.host:465)
+  // Fallback: SMTP (IONOS, etc.)
   if (process.env.SMTP_URL) {
     const nodemailer = await import('nodemailer');
     const transporter = nodemailer.createTransport(process.env.SMTP_URL as string);
@@ -26,5 +26,6 @@ export async function sendOtpEmail(to: string, code: string) {
     return;
   }
 
-  // If neither configured, just return. (auth.start will decide whether to show the code)
+  // Neither configured
+  throw new Error('No email provider configured. Set RESEND_API_KEY or SMTP_URL.');
 }
