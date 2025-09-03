@@ -1,8 +1,8 @@
+// src/lib/auth.ts
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { kv } from './kv';
 import { sql } from './db';
-import { sendOtpEmail } from './email';
 
 const COOKIE = 'gg_session';
 
@@ -17,22 +17,19 @@ export async function startOtp(email: string) {
   const code = (Math.floor(100000 + Math.random() * 900000)).toString();
   await kv.set(`otp:${email}`, code, { ex: 600 });
 
-  // If email is configured, send it. Otherwise (or if DEV_SHOW_OTP=1), return the code.
   const haveEmail = !!process.env.RESEND_API_KEY || !!process.env.SMTP_URL;
   if (haveEmail) {
     try {
+      const { sendOtpEmail } = await import('./email'); // <-- dynamic, only if configured
       await sendOtpEmail(email, code);
-      // If you still want to see the code in API while testing:
       if (process.env.DEV_SHOW_OTP === '1') return { email, code };
       return { email };
-    } catch (err) {
-      // Fall back to returning code if sending fails and toggle is on
+    } catch {
       if (process.env.DEV_SHOW_OTP === '1') return { email, code };
       throw new Error('Failed to send code email');
     }
   }
 
-  // No email provider configured
   if (process.env.DEV_SHOW_OTP === '1') return { email, code };
   throw new Error('Email not configured. Set DEV_SHOW_OTP=1 to show code in response, or configure RESEND_API_KEY/SMTP_URL.');
 }
@@ -48,7 +45,7 @@ export async function verifyOtp(email: string, code: string) {
     returning *`;
   const user = rows[0];
   const token = jwt.sign({ userId: user.id, email: user.email }, secret(), { expiresIn: '7d' });
-  cookies().set('gg_session', token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+  cookies().set(COOKIE, token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
   return { ok: true };
 }
 
