@@ -4,6 +4,8 @@ import { ensureSchema, sql } from '@/lib/db';
 import { requireSession } from '@/lib/auth';
 import { userRoleInFamily } from '@/lib/acl';
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   try {
     await ensureSchema();
@@ -27,5 +29,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Failed to add member' }, { status: 400 });
   }
 }
-
-export const runtime = 'nodejs';
