@@ -23,7 +23,7 @@ export default function RootLayout({
         <header className="flex items-center p-4 shadow-md">
           <Link href="/" passHref>
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="Genesis Gates Logo"
               width={120}
               height={40}
