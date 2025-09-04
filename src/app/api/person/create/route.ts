@@ -34,3 +34,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Failed to add person' }, { status: 400 });
   }
 }
+
+export const runtime = 'nodejs';
