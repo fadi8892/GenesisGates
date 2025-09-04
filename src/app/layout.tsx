@@ -1,30 +1,49 @@
-// src/app/layout.tsx
-import './globals.css';
-import Image from 'next/image';
-import Link from 'next/link';
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import Link from "next/link";
+import Image from "next/image";
 
-export const metadata = {
-  title: 'Genesis Gates',
-  description: 'Family history, decentralized.',
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Genesis Gates",
+  description: "Decentralized Family Tree Platform",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
-        <header className="border-b bg-white">
-          <div className="container py-3 flex items-center gap-3">
-            <Image src="/logo.svg" alt="Logo" width={160} height={40} />
-            <nav className="ml-auto flex items-center gap-3">
-              <Link className="hover:underline" href="/">Home</Link>
-              <Link className="hover:underline" href="/dashboard">Dashboard</Link>
-            </nav>
-          </div>
+      <body className={inter.className}>
+        {/* Header with clickable logo */}
+        <header className="flex items-center p-4 shadow-md">
+          <Link href="/" passHref>
+            <Image
+              src="/logo.png"
+              alt="Genesis Gates Logo"
+              width={120}
+              height={40}
+              className="cursor-pointer"
+              priority
+            />
+          </Link>
+
+          <nav className="ml-auto flex gap-6">
+            <Link href="/dashboard" className="hover:underline">
+              Dashboard
+            </Link>
+            <Link href="/about" className="hover:underline">
+              About
+            </Link>
+          </nav>
         </header>
-        <main className="container py-6">{children}</main>
-        <footer className="border-t mt-12 py-6 text-center text-sm text-slate-500">
-          © {new Date().getFullYear()} Genesis Gates
-        </footer>
+
+        {/* Main content */}
+        <main className="p-6">{children}</main>
       </body>
     </html>
   );
