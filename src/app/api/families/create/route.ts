@@ -35,3 +35,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Failed to create family' }, { status: 400 });
   }
 }
+
+export const runtime = 'nodejs';
