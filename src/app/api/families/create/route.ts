@@ -4,6 +4,8 @@ import { ensureSchema, sql } from '@/lib/db';
 import { requireSession } from '@/lib/auth';
 import { shortTreeId } from '@/lib/ids';
 
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
   try {
     await ensureSchema();
@@ -35,5 +37,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Failed to create family' }, { status: 400 });
   }
 }
-
-export const runtime = 'nodejs';
