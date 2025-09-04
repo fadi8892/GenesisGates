@@ -1,14 +1,17 @@
 import { requireSession } from '@/lib/auth';
+import DashboardClient from './client';
 import { redirect } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Dashboard() {
-  // Ensure the user is signed in; if not, bounce to home.
-  let session: { userId: string; email: string };
   try {
-    session = requireSession();
+    const session = requireSession();
+    return <DashboardClient email={session.email} />;
   } catch {
     redirect('/');
   }
+}
 
   return (
     <div className="space-y-4">
