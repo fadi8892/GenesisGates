@@ -4,6 +4,24 @@ import { useEffect, useMemo, useState } from 'react';
 type Family = { id: string; treeKey: string; name: string; role: 'admin'|'editor'|'viewer'; createdAt: string };
 type Person = { id: string; name: string; birthDate: string|null; deathDate: string|null; lat?: number|null; lon?: number|null; createdAt: string };
 
+// Helper: parse JSON or throw a readable error if the server returned HTML/text
+async function jsonOrThrow(r: Response) {
+  const ct = r.headers.get('content-type') || '';
+  const text = await r.text(); // read once
+  if (!ct.includes('application/json')) {
+    // Usually an HTML error page or a redirect target
+    throw new Error(`Non-JSON response from ${r.url} (status ${r.status}). ${text.slice(0, 140)}`);
+  }
+  let j: any;
+  try { j = JSON.parse(text); } catch {
+    throw new Error(`Invalid JSON from ${r.url} (status ${r.status}).`);
+  }
+  if (!r.ok) {
+    throw new Error(j?.error || `HTTP ${r.status} from ${r.url}`);
+  }
+  return j;
+}
+
 export default function DashboardClient({ email }: { email: string }) {
   const [families, setFamilies] = useState<Family[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,39 +44,53 @@ export default function DashboardClient({ email }: { email: string }) {
     setLoading(true); setErr(null);
     try {
       const r = await fetch('/api/families/mine', { cache: 'no-store' });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Failed to load families');
-      setFamilies(j.families);
+      const j = await jsonOrThrow(r);
+      setFamilies(j.families || []);
       if (!selectedFamilyId && j.families?.length) setSelectedFamilyId(j.families[0].id);
     } catch(e:any) {
       setErr(e.message);
+      console.error('loadFamilies failed:', e);
     } finally { setLoading(false); }
   }
 
   async function createFamily() {
     setLoading(true); setErr(null);
     try {
-      const r = await fetch('/api/families/create', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ name: newFamilyName }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Failed to create family');
+      const r = await fetch('/api/families/create', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ name: newFamilyName })
+      });
+      const j = await jsonOrThrow(r);
       setNewFamilyName('');
       await loadFamilies();
       setSelectedFamilyId(j.id);
-    } catch(e:any) { setErr(e.message); } finally { setLoading(false); }
+    } catch(e:any) {
+      setErr(e.message);
+      console.error('createFamily failed:', e);
+    } finally { setLoading(false); }
   }
 
   async function inviteMember() {
     if (!activeFamily) return;
     setLoading(true); setErr(null);
     try {
-      const r = await fetch('/api/families/members/add', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({
-        familyId: activeFamily.id, email: inviteEmail.trim().toLowerCase(), role: inviteRole
-      })});
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Failed to add member');
+      const r = await fetch('/api/families/members/add', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          familyId: activeFamily.id,
+          email: inviteEmail.trim().toLowerCase(),
+          role: inviteRole
+        })
+      });
+      await jsonOrThrow(r);
       setInviteEmail('');
       alert('Member added.');
-    } catch(e:any) { setErr(e.message); } finally { setLoading(false); }
+    } catch(e:any) {
+      setErr(e.message);
+      console.error('inviteMember failed:', e);
+    } finally { setLoading(false); }
   }
 
   async function addPerson() {
@@ -73,22 +105,32 @@ export default function DashboardClient({ email }: { email: string }) {
         lat: geo.lat ?? undefined,
         lon: geo.lon ?? undefined,
       };
-      const r = await fetch('/api/person/create', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(payload) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Failed to add person');
+      const r = await fetch('/api/person/create', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      await jsonOrThrow(r);
       setPersonName(''); setBirth(''); setDeath('');
       await loadPeople(activeFamily.id);
-    } catch(e:any) { setErr(e.message); } finally { setLoading(false); }
+    } catch(e:any) {
+      setErr(e.message);
+      console.error('addPerson failed:', e);
+    } finally { setLoading(false); }
   }
 
   async function loadPeople(familyId:string) {
     try {
-      const r = await fetch('/api/person/list', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ familyId }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Failed to load people');
-      setPeople(j.persons);
+      const r = await fetch('/api/person/list', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({ familyId })
+      });
+      const j = await jsonOrThrow(r);
+      setPeople(j.persons || []);
     } catch (e:any) {
       setErr(e.message);
+      console.error('loadPeople failed:', e);
     }
   }
 
@@ -111,9 +153,7 @@ export default function DashboardClient({ email }: { email: string }) {
         <p className="text-slate-600">Signed in as <span className="font-mono">{email}</span></p>
       </div>
 
-      {/* Next Steps (now actionable) */}
       <div className="grid md:grid-cols-3 gap-4">
-        {/* 1. Create tree */}
         <div className="card">
           <h2 className="font-medium mb-2">Create Family Tree</h2>
           <div className="flex gap-2">
@@ -124,7 +164,6 @@ export default function DashboardClient({ email }: { email: string }) {
           <p className="text-xs text-slate-500 mt-2">We’ll generate a Tree ID and make you the admin.</p>
         </div>
 
-        {/* 2. Invite editors */}
         <div className="card">
           <h2 className="font-medium mb-2">Invite Member</h2>
           <div className="mb-2">
@@ -144,7 +183,6 @@ export default function DashboardClient({ email }: { email: string }) {
           <p className="text-xs text-slate-500 mt-2">Admins can grant edit/view access by email.</p>
         </div>
 
-        {/* 3. Quick add person */}
         <div className="card">
           <h2 className="font-medium mb-2">Quick Add Person</h2>
           <div className="mb-2">
@@ -165,7 +203,6 @@ export default function DashboardClient({ email }: { email: string }) {
         </div>
       </div>
 
-      {/* Your Trees */}
       <div className="card">
         <h2 className="font-medium mb-2">Your Family Trees</h2>
         {families.length === 0 ? (
@@ -196,7 +233,6 @@ export default function DashboardClient({ email }: { email: string }) {
         )}
       </div>
 
-      {/* People in selected family */}
       {activeFamily && (
         <div className="card">
           <h2 className="font-medium mb-2">People in: {activeFamily.name} <span className="badge ml-2">{activeFamily.treeKey}</span></h2>
