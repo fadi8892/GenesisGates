@@ -4,6 +4,8 @@ import { ensureSchema, sql } from '@/lib/db';
 import { requireSession } from '@/lib/auth';
 import { userRoleInFamily, canEdit } from '@/lib/acl';
 
+export const runtime = 'nodejs';
+
 const Schema = z.object({
   familyId: z.string().uuid(),
   name: z.string().min(1).max(140),
@@ -34,5 +36,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Failed to add person' }, { status: 400 });
   }
 }
-
-export const runtime = 'nodejs';
