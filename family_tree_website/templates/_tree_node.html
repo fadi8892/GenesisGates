@@ -1,0 +1,14 @@
+{#
+  Recursive template to render a person and their children.  The
+  ``root`` variable should be passed in when including this template.
+#}
+<li>
+    {{ root.first_name }} {{ root.last_name or '' }}
+    {% if root.children %}
+    <ul>
+        {% for child in root.children %}
+            {% include "_tree_node.html" with root=child %}
+        {% endfor %}
+    </ul>
+    {% endif %}
+</li>
