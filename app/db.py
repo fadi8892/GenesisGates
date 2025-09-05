@@ -11,10 +11,14 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import os
 # Compute the path to the project root (one level above this file's directory).
 BASE_DIR = Path(__file__).resolve().parents[1]
+# Use /tmp directory for the database by default
+DEFAULT_DB_FILENAME = "database.db"
+DATABASE_PATH = Path(os.environ.get("DATABASE_DIR", "/tmp")) / DEFAULT_DB_FILENAME
 # The database file will live in the project root as `database.db`.
-DATABASE_PATH = BASE_DIR / "database.db"
+# DATABASE_PATH = BASE_DIR / "database.db"
 
 
 def get_db() -> sqlite3.Connection:
@@ -39,8 +43,8 @@ def init_db() -> None:
     matches the description provided in the specification.
     """
     # If the database file already exists, we assume the schema is present.
-    if DATABASE_PATH.exists():
-        return
+ #   if DATABASE_PATH.exists():
+ #    #   return
     conn = get_db()
     cur = conn.cursor()
     # Users table: stores accounts and verification status
