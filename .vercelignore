@@ -1,6 +1,0 @@
-node_modules
-*.log
-*.map
-*.local
-*.env*
-**/__tests__/**
