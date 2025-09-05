@@ -1,48 +1,33 @@
 {
-  "name": "genesis-gates-pro",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "next dev -p 5173",
-    "build": "next build",
-    "start": "next start -p 5173",
-    "lint": "eslint ."
-  },
-  "dependencies": {
-    "@vercel/kv": "1.0.1",
-    "@vercel/postgres": "0.8.0",
-    "jsonwebtoken": "9.0.2",
-    "leaflet": "1.9.4",
-    "lucide-react": "0.468.0",
-    "next": "14.2.8",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "tailwind-merge": "2.5.2",
-    "tailwindcss-animate": "1.0.7",
-    "web3.storage": "4.5.5",
-    "stripe": "14.25.0",
-    "zod": "3.23.8",
-    "resend": "3.4.0",
-    "nodemailer": "6.9.14"
-  },
-  "devDependencies": {
-    "@types/jsonwebtoken": "9.0.6",
-    "@types/node": "20.11.30",
-    "@types/react": "18.2.73",
-    "@types/react-dom": "18.2.24",
-    "@types/leaflet": "1.9.12",
-    "autoprefixer": "10.4.18",
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.2.8",
-    "postcss": "8.4.35",
-    "tailwindcss": "3.4.10",
-    "typescript": "5.6.2"
-  },
-  "engines": {
-    "node": ">=18.17"
-  },
-  "overrides": {
-    "eslint": "8.57.0"
-  }
+"name": "genesisgates",
+"private": true,
+"scripts": {
+"dev": "next dev",
+"build": "next build",
+"start": "next start",
+"lint": "next lint"
+},
+"dependencies": {
+"autoprefixer": "^10.4.20",
+"coinbase-commerce-node": "^1.0.5",
+"d3": "^7.9.0",
+"leaflet": "^1.9.4",
+"next": "^14.2.5",
+"postcss": "^8.4.45",
+"react": "^18.3.1",
+"react-dom": "^18.3.1",
+"react-leaflet": "^4.2.1",
+"stripe": "^16.4.0",
+"tailwindcss": "^3.4.10",
+"three": "^0.160.0",
+"zod": "^3.23.8"
+},
+"devDependencies": {
+"@types/leaflet": "^1.9.12",
+"@types/node": "^20.11.30",
+"@types/react": "^18.2.66",
+"typescript": "^5.6.2",
+"eslint": "^8.57.0",
+"eslint-config-next": "^14.2.5"
+}
 }
