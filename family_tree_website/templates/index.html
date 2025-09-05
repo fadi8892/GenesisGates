@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4 mb-3">Discover Your Roots</h1>
+    <p class="lead">Create, explore and preserve your family's history with our easy‑to‑use genealogy platform.</p>
+    {% if not user %}
+    <a href="/register" class="btn btn-primary btn-lg mt-3">Get Started</a>
+    {% else %}
+    <a href="/dashboard" class="btn btn-success btn-lg mt-3">Go to Dashboard</a>
+    {% endif %}
+</div>
+{% endblock %}
