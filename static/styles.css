@@ -46,9 +46,7 @@ body{
   border-radius:12px;
   padding:.7rem 1rem;
 }
-.hero{
-  padding:64px 0 40px;
-}
+.hero{ padding:64px 0 40px; }
 .hero-card{
   background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
   border:1px solid rgba(255,255,255,.08);
@@ -77,5 +75,4 @@ input:focus,select:focus,textarea:focus{
 a{color:#aeb4ff}
 a:hover{color:white}
 
-/* Utility spacing for index hero */
 .stack{display:flex; gap:12px; flex-wrap:wrap}
