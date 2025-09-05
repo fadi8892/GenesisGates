@@ -1,27 +1,50 @@
-import os, smtplib, ssl, random
-from email.message import EmailMessage
+import os
+import json
+import urllib.request
+import urllib.error
 
 def gen_code(n: int = 6) -> str:
+    import random
     return "".join(str(random.randint(0,9)) for _ in range(n))
 
 def send_email_code(to_email: str, code: str):
-    host = os.environ.get("SMTP_HOST")
-    port = int(os.environ.get("SMTP_PORT", "587"))
-    user = os.environ.get("SMTP_USER")
-    pwd  = os.environ.get("SMTP_PASS")
-    mail_from = os.environ.get("MAIL_FROM", user)
+    """
+    Sends a one-time login code using Resend.
+    Requires:
+      - RESEND_API_KEY
+      - MAIL_FROM (e.g., 'GenesisGates <noreply@genesisgates.com>')
+    """
+    api_key = os.environ.get("RESEND_API_KEY")
+    mail_from = os.environ.get("MAIL_FROM", os.environ.get("FROM_EMAIL"))
+    if not api_key:
+        raise RuntimeError("Missing RESEND_API_KEY")
+    if not mail_from:
+        raise RuntimeError("Missing MAIL_FROM/FROM_EMAIL")
 
-    if not all([host, port, user, pwd, mail_from]):
-        raise RuntimeError("SMTP environment variables missing")
+    subject = "Your GenesisGates login code"
+    text = f"Your one-time login code is: {code}\nThis code expires in 10 minutes."
+    payload = {
+        "from": mail_from,
+        "to": [to_email],
+        "subject": subject,
+        "text": text,
+    }
 
-    msg = EmailMessage()
-    msg["Subject"] = "Your GenesisGates login code"
-    msg["From"] = mail_from
-    msg["To"] = to_email
-    msg.set_content(f"Your one-time login code is: {code}\nThis code expires in 10 minutes.")
-
-    context = ssl.create_default_context()
-    with smtplib.SMTP(host, port) as s:
-        s.starttls(context=context)
-        s.login(user, pwd)
-        s.send_message(msg)
+    req = urllib.request.Request(
+        url="https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status not in (200, 201, 202):
+                body = resp.read().decode("utf-8", errors="ignore")
+                raise RuntimeError(f"Resend error: {resp.status} {body}")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Resend HTTPError: {e.code} {e.read().decode('utf-8', errors='ignore')}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Resend URLError: {e.reason}")
