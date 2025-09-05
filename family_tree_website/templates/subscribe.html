@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-3">Choose a membership plan</h2>
+<p>Your current plan: <strong>{{ current_plan|capitalize }}</strong></p>
+<form method="post" action="/subscribe" class="mt-3">
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="radio" name="plan" id="planFree" value="free" {% if current_plan == 'free' %}checked{% endif %}>
+        <label class="form-check-label" for="planFree">
+            Free plan – up to 3 trees, 200 persons per tree
+        </label>
+    </div>
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="radio" name="plan" id="planPremium" value="premium" {% if current_plan == 'premium' %}checked{% endif %}>
+        <label class="form-check-label" for="planPremium">
+            Premium plan – unlimited trees, unlimited persons and advanced features
+        </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Update plan</button>
+</form>
+<a href="/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
+{% endblock %}
