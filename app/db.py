@@ -4,20 +4,33 @@ import sqlite3, os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-DB_PATH = BASE_DIR / "data.sqlite"
+
+# If running on Vercel, write SQLite to /tmp (the only writable dir).
+# Else, use a file in the project dir for local dev.
+def _default_db_path() -> Path:
+    if os.environ.get("VERCEL") == "1" or os.environ.get("VERCEL_ENV"):
+        return Path("/tmp/data.sqlite")
+    return BASE_DIR / "data.sqlite"
+
+DB_PATH = Path(os.environ.get("DB_PATH") or _default_db_path())
 
 def dict_factory(cursor, row):
     return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
 def get_conn() -> sqlite3.Connection:
+    # Ensure parent dir exists (works for /tmp and local)
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = dict_factory
     return conn
 
 def init_db():
-    os.makedirs(BASE_DIR, exist_ok=True)
     conn = get_conn()
     cur = conn.cursor()
+    # (keep the rest of your CREATE TABLE statements exactly as you have them)
+    # ...
+    conn.commit()
+    conn.close()
 
     # Users
     cur.execute("""
