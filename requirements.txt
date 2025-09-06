@@ -1,6 +1,7 @@
 fastapi
+jinja2
 uvicorn
-Jinja2
 mangum
 python-multipart
 psycopg[binary]
+resend

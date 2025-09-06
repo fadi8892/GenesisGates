@@ -1,70 +1,87 @@
-from __future__ import annotations
-import base64, hmac, hashlib, os, time
-from typing import Optional
-from fastapi import Cookie, HTTPException, Depends
-from app.db import get_conn
+# app/auth.py
+import base64
+import hashlib
+import hmac
+import os
+import time
+from typing import Optional, List
 
-SECRET = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+# Canonical secret; compatible alias to avoid old references breaking.
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+SECRET = SECRET_KEY  # backward-compat
+
+# Cookie/settings
+SESSION_COOKIE = "gg_session"
+SESSION_TTL_SECONDS = 60 * 60 * 24 * 14  # 14 days
+
+def _b64u(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+def _b64u_to_bytes(s: str) -> bytes:
+    pad = "=" * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
 
 def _sign(value: str) -> str:
-    mac = hmac.new(SECRET.encode(), value.encode(), hashlib.sha256).digest()
-    return base64.urlsafe_b64encode(mac).decode().rstrip("=")
+    """Return base64url(HMAC_SHA256(secret, value))."""
+    mac = hmac.new(SECRET_KEY.encode(), value.encode(), hashlib.sha256).digest()
+    return _b64u(mac)
 
-def create_signed_cookie(user_id: str, max_age: int = 60*60*24*7) -> str:
-    ts = str(int(time.time()))
-    payload = f"{user_id}.{ts}"
+def _verify(value: str, signature: str) -> bool:
+    try:
+        expected = _b64u(hmac.new(SECRET_KEY.encode(), value.encode(), hashlib.sha256).digest())
+        # constant-time compare
+        return hmac.compare_digest(expected, signature)
+    except Exception:
+        return False
+
+def make_session_token(user_id: int, expires_at: Optional[int] = None) -> str:
+    """Create a signed session token 'uid.expires.sig'."""
+    if expires_at is None:
+        expires_at = int(time.time()) + SESSION_TTL_SECONDS
+    payload = f"{user_id}.{expires_at}"
     sig = _sign(payload)
     return f"{payload}.{sig}"
 
-def verify_signed_cookie(cookie: str) -> Optional[int]:
+def parse_session_token(token: str) -> Optional[int]:
+    """Return user_id if token is valid and not expired, else None."""
     try:
-        user_id, ts, sig = cookie.split(".")
+        uid_str, exp_str, sig = token.split(".")
+        payload = f"{uid_str}.{exp_str}"
+        if not _verify(payload, sig):
+            return None
+        if int(exp_str) < int(time.time()):
+            return None
+        return int(uid_str)
     except Exception:
         return None
-    if _sign(f"{user_id}.{ts}") != sig:
+
+def set_session_cookie(response, user_id: int) -> None:
+    token = make_session_token(user_id)
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=SESSION_TTL_SECONDS,
+        path="/",
+    )
+
+def clear_session_cookie(response) -> None:
+    response.delete_cookie(SESSION_COOKIE, path="/")
+
+def get_user_id_from_request(request) -> Optional[int]:
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
         return None
-    return int(user_id)
+    return parse_session_token(token)
 
-def get_current_user_id(session: Optional[str] = Cookie(default=None)) -> Optional[int]:
-    if not session:
-        return None
-    return verify_signed_cookie(session)
+# Convenience guards used by templates/views
+def is_owner(user_id: Optional[int], tree_owner_id: int) -> bool:
+    return user_id is not None and int(user_id) == int(tree_owner_id)
 
-def require_auth_user_id(session: Optional[str] = Cookie(default=None)) -> int:
-    uid = get_current_user_id(session)
-    if uid is None:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return uid
-
-# User helpers
-def get_user_id_by_email(email: str) -> Optional[int]:
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT id FROM users WHERE email=?", (email,))
-    row = cur.fetchone()
-    conn.close()
-    return row["id"] if row else None
-
-def get_or_create_user_by_email(email: str) -> int:
-    uid = get_user_id_by_email(email)
-    if uid: return uid
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("INSERT INTO users(email, is_verified) VALUES(?,1)", (email,))
-    conn.commit()
-    new_id = cur.lastrowid
-    conn.close()
-    return new_id
-
-# Ownership / editor checks
-def is_owner(user_id: int, tree_id: int) -> bool:
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT 1 FROM trees WHERE id=? AND owner_id=?", (tree_id, user_id))
-    ok = cur.fetchone() is not None
-    conn.close()
-    return ok
-
-def is_editor(user_id: int, tree_id: int) -> bool:
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT 1 FROM tree_editors WHERE tree_id=? AND user_id=?", (tree_id, user_id))
-    ok = cur.fetchone() is not None
-    conn.close()
-    return ok
+def is_editor(user_id: Optional[int], editors: List[int]) -> bool:
+    try:
+        return user_id is not None and int(user_id) in [int(e) for e in editors]
+    except Exception:
+        return False
