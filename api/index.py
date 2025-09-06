@@ -1,13 +1,11 @@
 """Vercel entrypoint for FastAPI app with helpful fallbacks."""
-import traceback
+import os, sys, traceback
 from fastapi import FastAPI
 
 try:
-    # Import your real FastAPI app
     from app.main import app as fastapi_app
     app = fastapi_app
 
-    # Handy debug endpoints
     @app.get("/_health")
     def _health():
         return {"ok": True}
@@ -17,8 +15,8 @@ try:
         return {"routes": sorted({getattr(r, "path", str(r)) for r in app.router.routes})}
 
 except Exception as exc:
-    # If import fails, expose the error instead of a 500
-    print("=== Failed to import app.main ===")
+    # Print full traceback to Vercel logs and expose a detail endpoint
+    print("=== Failed to import app.main ===", file=sys.stderr)
     traceback.print_exc()
 
     app = FastAPI()
@@ -29,4 +27,17 @@ except Exception as exc:
 
     @app.get("/__import_error")
     def _import_error():
-        return {"error": "Failed to import app.main", "detail": str(exc)}
+        # Return rich diagnostics
+        try:
+            tb = traceback.format_exc()
+        except Exception:
+            tb = "no-traceback"
+        return {
+            "error": "Failed to import app.main",
+            "exception": str(exc),
+            "cwd": os.getcwd(),
+            "files_in_cwd": sorted(os.listdir(".")),
+            "python": sys.version,
+            "sys_path": sys.path,
+            "traceback": tb,
+        }
