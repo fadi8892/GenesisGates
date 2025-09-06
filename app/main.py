@@ -149,7 +149,11 @@ def logout():
     resp = RedirectResponse("/", status_code=302)
     resp.delete_cookie("session")
     return resp
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> a1da190a30c1bf436c7b8b4602e43a08bd5b6259
 @app.get("/_health")
 def health():
     return {"ok": True}
