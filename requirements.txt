@@ -1,7 +1,0 @@
-fastapi
-jinja2
-uvicorn
-mangum
-python-multipart
-psycopg[binary]
-resend
