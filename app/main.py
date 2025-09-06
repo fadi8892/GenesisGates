@@ -1,25 +1,23 @@
-"""FastAPI app with public trees + passwordless login."""
+"""FastAPI main app (ensures '/' exists and templates resolve)."""
 from __future__ import annotations
-import os, secrets, urllib.parse
-from datetime import datetime, timedelta
+import os, secrets
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Request, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.db import init_db, get_conn, BASE_DIR
-from app.auth import (
-    create_signed_cookie, get_current_user_id, require_auth_user_id,
-    get_or_create_user_by_email, get_user_id_by_email, is_owner, is_editor
-)
-from app.tree_manager import get_tree_by_id, list_public_trees
-from app.utils import gen_code, send_email_code
+from app.db import init_db
 
 app = FastAPI()
 init_db()
+
+# Resolve paths relative to repo
+BASE_DIR = Path(__file__).resolve().parents[1]
+static_dir = str(BASE_DIR / "static")
+templates_dir = str(BASE_DIR / "templates")
 
 # Static & templates
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -149,11 +147,7 @@ def logout():
     resp = RedirectResponse("/", status_code=302)
     resp.delete_cookie("session")
     return resp
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> a1da190a30c1bf436c7b8b4602e43a08bd5b6259
+<
 @app.get("/_health")
 def health():
     return {"ok": True}
