@@ -1,45 +1,78 @@
-/* Custom stylesheet to complement Bootstrap */
-
-body {
-    background-color: #f8f9fa;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #343a40;
+:root{
+  --brand: #574cdc;        /* accent from logo */
+  --surface-0: #0f1220;    /* darkest bg */
+  --surface-1: #181c29;    /* cards/nav */
+  --surface-2: #1f2435;    /* hovers/borders */
+  --text: #f6f6f6;         /* main text */
+  --muted: #c8ccda;        /* secondary text */
+  --ring: #7f87f5;         /* focus ring */
 }
 
-h1, h2, h3, h4 {
-    font-weight: 600;
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(127,135,245,0.12), transparent 60%),
+              radial-gradient(900px 500px at 120% 10%, rgba(127,135,245,0.06), transparent 60%),
+              var(--surface-0);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
 }
 
-.navbar-brand {
-    font-weight: bold;
-    color: #0d6efd;
+.navbar{
+  background:rgba(24,28,41,.75)!important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.navbar .navbar-brand span{color:var(--text); font-weight:600; letter-spacing:.2px}
+.navbar .nav-link{color:var(--muted)}
+.navbar .nav-link:hover{color:var(--text)}
+
+.btn-brand{
+  background:var(--brand);
+  color:white;
+  border:none;
+  border-radius:12px;
+  padding:.7rem 1rem;
+  font-weight:600;
+  transition:transform .08s ease, box-shadow .2s ease, background .2s ease;
+  box-shadow:0 6px 16px rgba(87,76,220,.25);
+}
+.btn-brand:hover{transform:translateY(-1px)}
+.btn-ghost{
+  background:transparent;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:.7rem 1rem;
+}
+.hero{ padding:64px 0 40px; }
+.hero-card{
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;
+  padding:32px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+.card{
+  background:var(--surface-1);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text);
 }
 
-.navbar-brand:hover {
-    color: #084298;
-    text-decoration: none;
+input,select,textarea{
+  background:var(--surface-1)!important;
+  color:var(--text)!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  border-radius:12px!important;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none!important;
+  box-shadow:0 0 0 3px var(--ring)!important;
+  border-color:transparent!important;
 }
 
-.table thead th {
-    background-color: #f1f3f5;
-}
+a{color:#aeb4ff}
+a:hover{color:white}
 
-.btn-primary {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-}
-
-.btn-primary:hover {
-    background-color: #084298;
-    border-color: #084298;
-}
-
-.btn-success {
-    background-color: #198754;
-    border-color: #198754;
-}
-
-.btn-success:hover {
-    background-color: #146c43;
-    border-color: #146c43;
-}
+.stack{display:flex; gap:12px; flex-wrap:wrap}

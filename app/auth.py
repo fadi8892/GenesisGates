@@ -1,157 +1,70 @@
-"""Authentication and user management utilities.
-
-This module provides helper functions for creating users, verifying
-credentials, generating and validating one‑time passcodes (OTPs) and
-retrieving user information.  It relies on the low‑level database
-functions in :mod:`app.db` and stores its data in the tables defined
-there.
-"""
 from __future__ import annotations
-
-import hashlib
-import secrets
-import string
-from datetime import datetime, timedelta
+import base64, hmac, hashlib, os, time
 from typing import Optional
+from fastapi import Cookie, HTTPException, Depends
+from app.db import get_conn
 
-import sqlite3
+SECRET = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
-from .db import get_db
+def _sign(value: str) -> str:
+    mac = hmac.new(SECRET.encode(), value.encode(), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).decode().rstrip("=")
 
+def create_signed_cookie(user_id: str, max_age: int = 60*60*24*7) -> str:
+    ts = str(int(time.time()))
+    payload = f"{user_id}.{ts}"
+    sig = _sign(payload)
+    return f"{payload}.{sig}"
 
-def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
-    """Hash a password using SHA256 with an optional salt.
-
-    If no salt is provided a new 32‑character hexadecimal salt is
-    generated.  Returns a tuple of the password hash and the salt.  The
-    salt is always included with the stored hash to allow the caller
-    to verify the password later.
-    """
-    if salt is None:
-        # Generate a cryptographically secure random salt (32 hex chars)
-        salt = secrets.token_hex(16)
-    hasher = hashlib.sha256()
-    # Combine the salt and password to prevent rainbow table attacks
-    hasher.update((salt + password).encode("utf-8"))
-    return hasher.hexdigest(), salt
-
-
-def generate_otp() -> str:
-    """Generate a random six‑digit numeric one‑time passcode."""
-    return ''.join(secrets.choice(string.digits) for _ in range(6))
-
-
-def create_user(email: str, password: str, name: str) -> int:
-    """Create a new user account and return its numeric ID.
-
-    A :class:`ValueError` is raised if the email address is already
-    registered.  Passwords are hashed with a per‑user salt.  Email
-    addresses are normalised to lower case before storing.
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    # Reject duplicate email addresses
-    cur.execute("SELECT id FROM users WHERE email = ?", (email.lower(),))
-    if cur.fetchone():
-        conn.close()
-        raise ValueError("Email already registered")
-    pwd_hash, salt = hash_password(password)
-    cur.execute(
-        "INSERT INTO users (email, password_hash, salt, name) VALUES (?, ?, ?, ?)",
-        (email.lower(), pwd_hash, salt, name),
-    )
-    user_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    return user_id
-
-
-def check_user_credentials(email: str, password: str) -> Optional[int]:
-    """Verify a user's credentials and return their ID if correct.
-
-    This function checks whether the given email exists in the database
-    and whether the provided password matches the stored hash.  It
-    also ensures that the user's email has been verified.  On
-    success the user ID is returned; otherwise ``None`` is returned.
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, password_hash, salt, email_verified FROM users WHERE email = ?",
-        (email.lower(),),
-    )
-    row = cur.fetchone()
-    if row is None:
-        conn.close()
+def verify_signed_cookie(cookie: str) -> Optional[int]:
+    try:
+        user_id, ts, sig = cookie.split(".")
+    except Exception:
         return None
-    pwd_hash, _ = hash_password(password, row["salt"])
-    if pwd_hash == row["password_hash"] and row["email_verified"]:
-        uid = row["id"]
-    else:
-        uid = None
-    conn.close()
+    if _sign(f"{user_id}.{ts}") != sig:
+        return None
+    return int(user_id)
+
+def get_current_user_id(session: Optional[str] = Cookie(default=None)) -> Optional[int]:
+    if not session:
+        return None
+    return verify_signed_cookie(session)
+
+def require_auth_user_id(session: Optional[str] = Cookie(default=None)) -> int:
+    uid = get_current_user_id(session)
+    if uid is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
     return uid
 
+# User helpers
+def get_user_id_by_email(email: str) -> Optional[int]:
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    row = cur.fetchone()
+    conn.close()
+    return row["id"] if row else None
 
-def issue_otp(user_id: int) -> str:
-    """Generate and store a one‑time passcode for the given user.
-
-    The OTP is valid for 10 minutes.  Any previously issued OTPs for
-    this user are removed.  Returns the generated code.  The caller
-    should send this code to the user's email address.
-    """
-    code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
-    conn = get_db()
-    cur = conn.cursor()
-    # Remove any existing OTPs for this user
-    cur.execute("DELETE FROM otps WHERE user_id = ?", (user_id,))
-    cur.execute(
-        "INSERT INTO otps (user_id, code, expires_at) VALUES (?, ?, ?)",
-        (user_id, code, expires_at.isoformat()),
-    )
+def get_or_create_user_by_email(email: str) -> int:
+    uid = get_user_id_by_email(email)
+    if uid: return uid
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("INSERT INTO users(email, is_verified) VALUES(?,1)", (email,))
     conn.commit()
+    new_id = cur.lastrowid
     conn.close()
-    return code
+    return new_id
 
-
-def verify_otp(user_id: int, code: str) -> bool:
-    """Verify a one‑time passcode for a user.
-
-    If the code matches the stored value and has not expired, the OTP
-    entry is removed and the user's email is marked as verified.  This
-    function returns ``True`` on success and ``False`` on failure.
-    """
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, expires_at FROM otps WHERE user_id = ? AND code = ?",
-        (user_id, code),
-    )
-    row = cur.fetchone()
-    if row:
-        # Check expiration time
-        expires_at = datetime.fromisoformat(row["expires_at"])
-        if datetime.utcnow() <= expires_at:
-            # Delete the OTP once it has been used
-            cur.execute("DELETE FROM otps WHERE id = ?", (row["id"],))
-            # Mark the user's email as verified
-            cur.execute(
-                "UPDATE users SET email_verified = 1 WHERE id = ?",
-                (user_id,),
-            )
-            conn.commit()
-            conn.close()
-            return True
+# Ownership / editor checks
+def is_owner(user_id: int, tree_id: int) -> bool:
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT 1 FROM trees WHERE id=? AND owner_id=?", (tree_id, user_id))
+    ok = cur.fetchone() is not None
     conn.close()
-    return False
+    return ok
 
-
-def get_user(user_id: int) -> Optional[sqlite3.Row]:
-    """Return a user row for the given ID or ``None`` if not found."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-    row = cur.fetchone()
+def is_editor(user_id: int, tree_id: int) -> bool:
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT 1 FROM tree_editors WHERE tree_id=? AND user_id=?", (tree_id, user_id))
+    ok = cur.fetchone() is not None
     conn.close()
-    return row
+    return ok

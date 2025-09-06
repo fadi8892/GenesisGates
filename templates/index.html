@@ -1,13 +1,24 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="text-center py-5">
-    <h1 class="display-4 mb-3">Discover Your Roots</h1>
-    <p class="lead">Create, explore and preserve your family's history with our easy‑to‑use genealogy platform.</p>
-    {% if not user %}
-    <a href="/register" class="btn btn-primary btn-lg mt-3">Get Started</a>
-    {% else %}
-    <a href="/dashboard" class="btn btn-success btn-lg mt-3">Go to Dashboard</a>
-    {% endif %}
+<div class="container hero">
+  <div class="row align-items-center">
+    <div class="col-lg-8">
+      <div class="hero-card mb-4">
+        <h1 class="display-5 fw-bold mb-3">Family trees, beautifully simple.</h1>
+        <p class="lead text-muted mb-4">
+          Explore your family’s story on an elegant canvas with maps, relationships, and timelines —
+          no sign-up required to view public trees.
+        </p>
+        <div class="stack">
+          <a class="btn-brand" href="/dashboard">Build your tree</a>
+          <a class="btn-ghost" href="/trees">Browse public trees</a>
+        </div>
+      </div>
+      <p class="text-muted">
+        Just browsing? Open a sample:
+        <a href="/tree/1">Sample Tree #1</a>
+      </p>
+    </div>
+  </div>
 </div>
 {% endblock %}

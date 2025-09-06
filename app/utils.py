@@ -1,80 +1,50 @@
-"""Miscellaneous utilities for session management and templating.
+import os
+import json
+import urllib.request
+import urllib.error
 
-This module defines helpers for working with signed cookies to
-implement simple sessions, as well as setting up the Jinja2
-environment for rendering HTML templates.  It is deliberately kept
-free of any FastAPI specifics so that its functions can be reused
-across different frameworks if needed.
-"""
-from __future__ import annotations
+def gen_code(n: int = 6) -> str:
+    import random
+    return "".join(str(random.randint(0,9)) for _ in range(n))
 
-import hashlib
-import secrets
-from pathlib import Path
-from typing import Any, Dict, Optional
-
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-# The secret key used to sign session cookies.  In a production
-# deployment you should set this from an environment variable so that
-# it is stable across deployments.
-SECRET_KEY = secrets.token_hex(32)
-
-# Determine the project root so we can locate templates and static files
-BASE_DIR = Path(__file__).resolve().parents[1]
-
-# Configure Jinja2 to load templates from the templates/ directory and
-# escape HTML by default.
-templates = Environment(
-    loader=FileSystemLoader(str(BASE_DIR / "templates")),
-    autoescape=select_autoescape(["html", "xml"]),
-)
-
-
-def _sign(value: str) -> str:
-    """Return a HMAC‑like signature for the given string value."""
-    h = hashlib.sha256()
-    h.update((SECRET_KEY + value).encode("utf-8"))
-    return h.hexdigest()
-
-
-def create_signed_cookie(value: str) -> str:
-    """Return a cookie value of the form ``<value>|<signature>``."""
-    return f"{value}|{_sign(value)}"
-
-
-def verify_signed_cookie(cookie_value: str) -> Optional[str]:
-    """Verify a signed cookie and return the original value if valid.
-
-    If the signature does not match the stored value this function
-    returns ``None``.  If the cookie is malformed it also returns
-    ``None``.
+def send_email_code(to_email: str, code: str):
     """
+    Sends a one-time login code using Resend.
+    Requires:
+      - RESEND_API_KEY
+      - MAIL_FROM (e.g., 'GenesisGates <noreply@genesisgates.com>')
+    """
+    api_key = os.environ.get("RESEND_API_KEY")
+    mail_from = os.environ.get("MAIL_FROM", os.environ.get("FROM_EMAIL"))
+    if not api_key:
+        raise RuntimeError("Missing RESEND_API_KEY")
+    if not mail_from:
+        raise RuntimeError("Missing MAIL_FROM/FROM_EMAIL")
+
+    subject = "Your GenesisGates login code"
+    text = f"Your one-time login code is: {code}\nThis code expires in 10 minutes."
+    payload = {
+        "from": mail_from,
+        "to": [to_email],
+        "subject": subject,
+        "text": text,
+    }
+
+    req = urllib.request.Request(
+        url="https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
     try:
-        value, sig = cookie_value.split("|", 1)
-    except ValueError:
-        return None
-    if _sign(value) == sig:
-        return value
-    return None
-
-
-def render_template(
-    request: Request, template_name: str, context: Dict[str, Any]
-) -> HTMLResponse:
-    """Render a Jinja2 template and return an HTMLResponse.
-
-    The provided context dictionary is passed directly into the
-    template.  This helper wraps the rendered string in a FastAPI
-    ``HTMLResponse`` so that your route handlers can return the result
-    directly.
-    """
-    # Add the request itself to the context so templates can access
-    # request.url and other properties if needed
-    context = dict(context)
-    context.setdefault("request", request)
-    template = templates.get_template(template_name)
-    content = template.render(**context)
-    return HTMLResponse(content)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status not in (200, 201, 202):
+                body = resp.read().decode("utf-8", errors="ignore")
+                raise RuntimeError(f"Resend error: {resp.status} {body}")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Resend HTTPError: {e.code} {e.read().decode('utf-8', errors='ignore')}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Resend URLError: {e.reason}")

@@ -1,13 +1,16 @@
-"""Vercel entrypoint.
-
-This module imports the FastAPI application from :mod:`app.main`.
-
-Vercel's Python runtime will automatically detect the `app` variable as an ASGI application to handle requests.
-"""
+"""Vercel entrypoint for FastAPI app."""
+import traceback
+from fastapi import FastAPI
 
 try:
     from app.main import app as fastapi_app
+    app = fastapi_app
 except Exception as exc:
-    raise RuntimeError("Failed to import FastAPI application: %s" % (exc,))
+    # Log the import error so Vercel logs show the root cause
+    traceback.print_exc()
+    # Provide a minimal app so the function still responds
+    app = FastAPI()
 
-app = fastapi_app
+    @app.get("/__import_error")
+    def import_error():
+        return {"error": "Failed to import app.main", "detail": str(exc)}
