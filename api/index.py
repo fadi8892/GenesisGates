@@ -1,6 +1,13 @@
-"""Vercel entrypoint for FastAPI app with helpful fallbacks."""
+"""Vercel entrypoint for FastAPI, with robust pathing + diagnostics."""
 import os, sys, traceback
+from pathlib import Path
 from fastapi import FastAPI
+
+# --- Ensure the repo root is on sys.path so 'app' can be imported ---
+API_DIR = Path(__file__).resolve().parent
+REPO_ROOT = API_DIR.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 try:
     from app.main import app as fastapi_app
@@ -15,7 +22,6 @@ try:
         return {"routes": sorted({getattr(r, "path", str(r)) for r in app.router.routes})}
 
 except Exception as exc:
-    # Print full traceback to Vercel logs and expose a detail endpoint
     print("=== Failed to import app.main ===", file=sys.stderr)
     traceback.print_exc()
 
@@ -27,17 +33,13 @@ except Exception as exc:
 
     @app.get("/__import_error")
     def _import_error():
-        # Return rich diagnostics
-        try:
-            tb = traceback.format_exc()
-        except Exception:
-            tb = "no-traceback"
         return {
             "error": "Failed to import app.main",
             "exception": str(exc),
             "cwd": os.getcwd(),
             "files_in_cwd": sorted(os.listdir(".")),
-            "python": sys.version,
+            "repo_root": str(REPO_ROOT),
+            "has_app_pkg": os.path.isdir(str(REPO_ROOT / "app")),
+            "has_init": os.path.isfile(str(REPO_ROOT / "app" / "__init__.py")),
             "sys_path": sys.path,
-            "traceback": tb,
         }
