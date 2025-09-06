@@ -9,6 +9,16 @@ REPO_ROOT = API_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+# api/index.py
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.main import app  # FastAPI instance named 'app'
+
 try:
     from app.main import app as fastapi_app
     app = fastapi_app

@@ -13,6 +13,30 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+# app/main.py
+from fastapi import FastAPI
+from typing import List, Dict, Any
+
+app = FastAPI(title="GenesisGates")
+
+@app.get("/_health")
+def _health() -> Dict[str, bool]:
+    return {"ok": True}
+
+@app.get("/__routes")
+def __routes() -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for r in app.router.routes:
+        methods = sorted(list(getattr(r, "methods", []) or []))
+        path = getattr(r, "path", None) or str(getattr(r, "path_regex", ""))
+        out.append({"path": str(path), "methods": methods, "name": getattr(r, "name", "")})
+    return out
+
+@app.get("/")
+def home():
+    return {"message": "GenesisGates API is running"}
+
+
 # Local modules you already have (from our previous steps)
 from app.db import init_db, get_conn
 from app.auth import (
