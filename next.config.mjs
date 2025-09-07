@@ -1,13 +1,11 @@
+// next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   experimental: {
-    serverActions: {
-      allowedOrigins: ['*'],
-    },
+    serverActions: { allowedOrigins: ['*'] },
   },
-  // Remove basePath/output rewrites unless you intentionally use them.
-  // output: 'export',
-  // basePath: '/something',
+  // Add other Next.js options here as needed
 };
 
 export default nextConfig;

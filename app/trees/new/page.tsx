@@ -1,5 +1,8 @@
 // app/trees/new/page.tsx
+// Server Component (no "use client") — no event handlers here.
 import Link from 'next/link';
+
+export const dynamic = 'force-static';
 
 export default function NewTreePage() {
   return (
@@ -9,10 +12,17 @@ export default function NewTreePage() {
         This is a placeholder. Hook this up to your create-tree API when ready.
       </p>
 
-      <form className="mt-8 grid gap-4 max-w-md">
+      <form
+        // You can wire this up to a server action later.
+        // For now we just point "action" back to /trees to avoid client JS.
+        action="/trees"
+        method="get"
+        className="mt-8 grid gap-4 max-w-md"
+      >
         <label className="grid gap-2">
           <span className="text-sm text-gray-600">Tree Name</span>
           <input
+            name="name"
             type="text"
             placeholder="e.g. Douri Family Tree"
             className="w-full rounded-lg border px-3 py-2"
@@ -21,13 +31,12 @@ export default function NewTreePage() {
 
         <div className="flex gap-3">
           <button
-            type="button"
-            className="rounded-lg border px-4 py-2"
-            onClick={() => alert('Wire this up to your API later')}
+            type="submit"
+            className="rounded-lg border px-4 py-2 hover:shadow"
           >
             Create
           </button>
-          <Link href="/trees" className="rounded-lg border px-4 py-2">
+          <Link href="/trees" className="rounded-lg border px-4 py-2 hover:shadow">
             Cancel
           </Link>
         </div>

@@ -1,5 +1,8 @@
 // app/trees/page.tsx
+// Server Component — no event handlers.
 import Link from 'next/link';
+
+export const dynamic = 'force-static';
 
 export default function TreesIndexPage() {
   return (
