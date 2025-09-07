@@ -13,7 +13,7 @@ type Person = {
   residencePlace?: string;
 };
 
-type State = {
+export type State = {
   people: Person[];
   links: { parentId: string; childId: string }[];
   spouses: [string, string][];
@@ -53,16 +53,27 @@ async function fetchPlaces(q: string) {
   return (j||[]).map((it:any)=>({ label: it.display_name, lat: parseFloat(it.lat), lon: parseFloat(it.lon) }));
 }
 
-export default function TreeClient({ treeId }: { treeId: string }) {
-  const [tab, setTab] = useState<'overview'|'tree'|'map'|'settings'>('overview');
+export type TreeClientProps = {
+  treeId: string;
+  initialState?: State;
+  readOnly?: boolean;
+};
+
+export default function TreeClient({ treeId, initialState, readOnly = false }: TreeClientProps) {
+  const [tab, setTab] = useState<'overview'|'tree'|'map'|'settings'>(
+    'overview'
+  );
   const [state, setState] = useState<State>(() => {
+    if (initialState) return structuredClone(initialState);
     const k = `gg:tree:${treeId}`;
-    const s = (typeof window !== 'undefined') ? window.localStorage.getItem(k) : null;
+    const s = typeof window !== 'undefined' ? window.localStorage.getItem(k) : null;
     return s ? JSON.parse(s) : { people: [], links: [], spouses: [], geoCache: {} };
   });
   const saveLocal = (s: State) => {
+    if (readOnly) return;
     setState(s);
-    if (typeof window !== 'undefined') localStorage.setItem(`gg:tree:${treeId}`, JSON.stringify(s));
+    if (typeof window !== 'undefined')
+      localStorage.setItem(`gg:tree:${treeId}`, JSON.stringify(s));
   };
 
   // quick add
@@ -88,11 +99,7 @@ export default function TreeClient({ treeId }: { treeId: string }) {
     return ()=> clearTimeout(t);
   }, [placeQuery]);
 
-  // publish snapshot (BYO or managed)
-  const [provider, setProvider] = useState<'web3storage'|'storacha'>('web3storage');
-  const [mode, setMode] = useState<'byo'|'managed'>('byo');
-  const [byoToken, setByoToken] = useState('');
-  const [pubStatus, setPubStatus] = useState<string | null>(null);
+@@ -96,145 +107,273 @@ export default function TreeClient({ treeId }: { treeId: string }) {
 
   async function publish() {
     setPubStatus('Publishing…');
@@ -118,20 +125,45 @@ export default function TreeClient({ treeId }: { treeId: string }) {
     return pts;
   }, [state]);
 
+  const tabs = readOnly
+    ? (['overview', 'tree', 'map'] as const)
+    : (['overview', 'tree', 'map', 'settings'] as const);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        {(['overview','tree','map','settings'] as const).map(t => (
-          <button key={t} className={`tab ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>
+        {tabs.map(t => (
+          <button
+            key={t}
+            className={`tab ${tab === t ? 'active' : ''}`}
+            onClick={() => setTab(t)}
+          >
+            {t[0].toUpperCase() + t.slice(1)}
+          </button>
         ))}
       </div>
 
       {tab==='overview' && (
         <div className="card space-y-4">
-          <div className="flex gap-2">
-            <input className="input flex-1" placeholder="Add a person by name…" value={quickName} onChange={e=>setQuickName(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') { e.preventDefault(); quickAddPerson(); } }} />
-            <button className="btn" onClick={quickAddPerson}>Add</button>
-          </div>
+          {!readOnly && (
+            <div className="flex gap-2">
+              <input
+                className="input flex-1"
+                placeholder="Add a person by name…"
+                value={quickName}
+                onChange={e => setQuickName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    quickAddPerson();
+                  }
+                }}
+              />
+              <button className="btn" onClick={quickAddPerson}>
+                Add
+              </button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-slate-500">
@@ -141,10 +173,30 @@ export default function TreeClient({ treeId }: { treeId: string }) {
                 {peopleList.map(p => (
                   <tr key={p.id} className="border-t">
                     <td className="py-2">
-                      <input className="input w-full" value={p.name || ''} onChange={e=>{ const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; q.name=e.target.value; saveLocal(n); }} />
+                      <input
+                        className="input w-full"
+                        disabled={readOnly}
+                        value={p.name || ''}
+                        onChange={e => {
+                          const n = structuredClone(state);
+                          const q = n.people.find(x => x.id === p.id)!;
+                          q.name = e.target.value;
+                          saveLocal(n);
+                        }}
+                      />
                     </td>
                     <td>
-                      <select className="input" value={p.sex || 'U'} onChange={e=>{ const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; q.sex=e.target.value as any; saveLocal(n); }}>
+                      <select
+                        className="input"
+                        disabled={readOnly}
+                        value={p.sex || 'U'}
+                        onChange={e => {
+                          const n = structuredClone(state);
+                          const q = n.people.find(x => x.id === p.id)!;
+                          q.sex = e.target.value as any;
+                          saveLocal(n);
+                        }}
+                      >
                         <option value="U">—</option>
                         <option value="M">M</option>
                         <option value="F">F</option>
@@ -152,13 +204,45 @@ export default function TreeClient({ treeId }: { treeId: string }) {
                     </td>
                     <td>
                       <div className="flex gap-2">
-                        <input type="date" className="input" value={p.birthDate || ''} onChange={e=>{ const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; const iso=toISODate(e.target.value); if(iso) q.birthDate=iso; else delete q.birthDate; saveLocal(n); }} />
-                        <input className="input place-input" placeholder="Birth place" list={"dl-"+p.id+"-birth"} value={p.birthPlace||''} onChange={e=>{ setPlaceQuery(e.target.value); const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; q.birthPlace=e.target.value; saveLocal(n); }} onBlur={e=>{
-                          const opt = placeOpts.find(o=>o.label===e.target.value);
-                          if (opt) {
-                            const n=structuredClone(state); n.geoCache[placeKey(opt.label)] = { lat: opt.lat, lon: opt.lon }; saveLocal(n);
-                          }
-                        }} />
+                        <input
+                          type="date"
+                          className="input"
+                          disabled={readOnly}
+                          value={p.birthDate || ''}
+                          onChange={e => {
+                            const n = structuredClone(state);
+                            const q = n.people.find(x => x.id === p.id)!;
+                            const iso = toISODate(e.target.value);
+                            if (iso) q.birthDate = iso;
+                            else delete q.birthDate;
+                            saveLocal(n);
+                          }}
+                        />
+                        <input
+                          className="input place-input"
+                          disabled={readOnly}
+                          placeholder="Birth place"
+                          list={"dl-" + p.id + "-birth"}
+                          value={p.birthPlace || ''}
+                          onChange={e => {
+                            setPlaceQuery(e.target.value);
+                            const n = structuredClone(state);
+                            const q = n.people.find(x => x.id === p.id)!;
+                            q.birthPlace = e.target.value;
+                            saveLocal(n);
+                          }}
+                          onBlur={e => {
+                            const opt = placeOpts.find(o => o.label === e.target.value);
+                            if (opt) {
+                              const n = structuredClone(state);
+                              n.geoCache[placeKey(opt.label)] = {
+                                lat: opt.lat,
+                                lon: opt.lon,
+                              };
+                              saveLocal(n);
+                            }
+                          }}
+                        />
                         <datalist id={"dl-"+p.id+"-birth"}>
                           {placeOpts.map(o=> <option key={o.label} value={o.label} />)}
                         </datalist>
@@ -166,25 +250,76 @@ export default function TreeClient({ treeId }: { treeId: string }) {
                     </td>
                     <td>
                       <div className="flex gap-2">
-                        <input type="date" className="input" value={p.deathDate || ''} onChange={e=>{ const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; const iso=toISODate(e.target.value); if(iso) q.deathDate=iso; else delete q.deathDate; saveLocal(n); }} />
-                        <input className="input place-input" placeholder="Death place" list={"dl-"+p.id+"-death"} value={p.deathPlace||''} onChange={e=>{ setPlaceQuery(e.target.value); const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; q.deathPlace=e.target.value; saveLocal(n); }} onBlur={e=>{
-                          const opt = placeOpts.find(o=>o.label===e.target.value);
-                          if (opt) {
-                            const n=structuredClone(state); n.geoCache[placeKey(opt.label)] = { lat: opt.lat, lon: opt.lon }; saveLocal(n);
-                          }
-                        }} />
+                        <input
+                          type="date"
+                          className="input"
+                          disabled={readOnly}
+                          value={p.deathDate || ''}
+                          onChange={e => {
+                            const n = structuredClone(state);
+                            const q = n.people.find(x => x.id === p.id)!;
+                            const iso = toISODate(e.target.value);
+                            if (iso) q.deathDate = iso;
+                            else delete q.deathDate;
+                            saveLocal(n);
+                          }}
+                        />
+                        <input
+                          className="input place-input"
+                          disabled={readOnly}
+                          placeholder="Death place"
+                          list={"dl-" + p.id + "-death"}
+                          value={p.deathPlace || ''}
+                          onChange={e => {
+                            setPlaceQuery(e.target.value);
+                            const n = structuredClone(state);
+                            const q = n.people.find(x => x.id === p.id)!;
+                            q.deathPlace = e.target.value;
+                            saveLocal(n);
+                          }}
+                          onBlur={e => {
+                            const opt = placeOpts.find(o => o.label === e.target.value);
+                            if (opt) {
+                              const n = structuredClone(state);
+                              n.geoCache[placeKey(opt.label)] = {
+                                lat: opt.lat,
+                                lon: opt.lon,
+                              };
+                              saveLocal(n);
+                            }
+                          }}
+                        />
                         <datalist id={"dl-"+p.id+"-death"}>
                           {placeOpts.map(o=> <option key={o.label} value={o.label} />)}
                         </datalist>
                       </div>
                     </td>
                     <td>
-                      <input className="input place-input w-56" placeholder="Residence" list={"dl-"+p.id+"-res"} value={p.residencePlace||''} onChange={e=>{ setPlaceQuery(e.target.value); const n=structuredClone(state); const q=n.people.find(x=>x.id===p.id)!; q.residencePlace=e.target.value; saveLocal(n); }} onBlur={e=>{
-                        const opt = placeOpts.find(o=>o.label===e.target.value);
-                        if (opt) {
-                          const n=structuredClone(state); n.geoCache[placeKey(opt.label)] = { lat: opt.lat, lon: opt.lon }; saveLocal(n);
-                        }
-                      }} />
+                      <input
+                        className="input place-input w-56"
+                        disabled={readOnly}
+                        placeholder="Residence"
+                        list={"dl-" + p.id + "-res"}
+                        value={p.residencePlace || ''}
+                        onChange={e => {
+                          setPlaceQuery(e.target.value);
+                          const n = structuredClone(state);
+                          const q = n.people.find(x => x.id === p.id)!;
+                          q.residencePlace = e.target.value;
+                          saveLocal(n);
+                        }}
+                        onBlur={e => {
+                          const opt = placeOpts.find(o => o.label === e.target.value);
+                          if (opt) {
+                            const n = structuredClone(state);
+                            n.geoCache[placeKey(opt.label)] = {
+                              lat: opt.lat,
+                              lon: opt.lon,
+                            };
+                            saveLocal(n);
+                          }
+                        }}
+                      />
                       <datalist id={"dl-"+p.id+"-res"}>
                         {placeOpts.map(o=> <option key={o.label} value={o.label} />)}
                       </datalist>
@@ -212,7 +347,7 @@ export default function TreeClient({ treeId }: { treeId: string }) {
         </div>
       )}
 
-      {tab==='settings' && (
+      {!readOnly && tab==='settings' && (
         <div className="grid md:grid-cols-2 gap-4">
           <div className="card space-y-2">
             <div className="text-sm font-semibold">Publish Snapshot</div>
@@ -238,56 +373,3 @@ export default function TreeClient({ treeId }: { treeId: string }) {
         </div>
       )}
     </div>
-  );
-}
-
-function Members({ treeId }: { treeId: string }) {
-  const [rows, setRows] = useState<{id:string,email:string,role:string}[]|null>(null);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin'|'editor'|'viewer'>('editor');
-  const [err, setErr] = useState<string|null>(null);
-
-  async function load() {
-    const r = await fetch(`/api/trees/${treeId}/members`);
-    const j = await r.json();
-    setRows(j);
-  }
-  useEffect(()=>{ load(); }, [treeId]);
-
-  async function add() {
-    setErr(null);
-    const r = await fetch(`/api/trees/${treeId}/members`, { method: 'POST', headers: { 'content-type':'application/json' }, body: JSON.stringify({ email, role }) });
-    if (!r.ok) { const j=await r.json(); setErr(j.error || 'Failed'); return; }
-    setEmail(''); load();
-  }
-
-  async function remove(userId: string) {
-    await fetch(`/api/trees/${treeId}/members?userId=${encodeURIComponent(userId)}`, { method: 'DELETE' });
-    load();
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="text-sm font-semibold">Members</div>
-      <div className="flex gap-2">
-        <input className="input flex-1" placeholder="invite@email.com" value={email} onChange={e=>setEmail(e.target.value)} />
-        <select className="input" value={role} onChange={e=>setRole(e.target.value as any)}>
-          <option value="editor">Editor</option>
-          <option value="viewer">Viewer</option>
-          <option value="admin">Admin</option>
-        </select>
-        <button className="btn" onClick={add}>Add</button>
-      </div>
-      {err && <div className="text-rose-600 text-sm">{err}</div>}
-      <div className="mt-2 divide-y">
-        {rows?.map(r => (
-          <div key={r.id} className="py-2 flex items-center">
-            <div className="flex-1">{r.email}</div>
-            <div className="badge mr-2">{r.role}</div>
-            <button className="text-rose-600 text-sm" onClick={()=>remove(r.id)}>Remove</button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
