@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: { serverActions: { bodySizeLimit: '2mb' } },
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['*'],
+    },
+  },
+  // Remove basePath/output rewrites unless you intentionally use them.
+  // output: 'export',
+  // basePath: '/something',
 };
-export default nextConfig;
+
+module.exports = nextConfig;
