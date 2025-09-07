@@ -1,10 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Orbitron } from "next/font/google";
 import Link from "next/link";
 import Image from "next/image";
-
-const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
 
 export const metadata: Metadata = {
   title: "Genesis Gates",
@@ -18,9 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={orbitron.className}>
+      <body className="font-sans">
         {/* Header with clickable logo */}
-        <header className="flex items-center p-4 bg-black/30 backdrop-blur-md border-b border-white/10">
+        <header className="flex items-center p-4 bg-[#1B1F2C] border-b border-[#574CDC]/20">
           <Link href="/" passHref>
             <Image
               src="/logo.svg"
@@ -32,11 +29,11 @@ export default function RootLayout({
             />
           </Link>
 
-          <nav className="ml-auto flex gap-6 text-sm text-slate-100">
-            <Link href="/dashboard" className="hover:text-fuchsia-400 transition">
+          <nav className="ml-auto flex gap-6 text-sm text-[#F9F9F9]">
+            <Link href="/dashboard" className="hover:text-[#574CDC] transition">
               Dashboard
             </Link>
-            <Link href="/about" className="hover:text-fuchsia-400 transition">
+            <Link href="/about" className="hover:text-[#574CDC] transition">
               About
             </Link>
           </nav>

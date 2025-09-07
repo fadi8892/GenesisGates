@@ -33,6 +33,7 @@ export default function HomePage() {
 
     async function verify() {
     setLoading(true);
+    setLoading(true);
     setErr(null);
     try {
       const payload = {
@@ -57,7 +58,7 @@ export default function HomePage() {
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <div className="card">
-        <h1 className="text-xl font-semibold mb-2">Welcome to Genesis Gates</h1>
+        <h1 className="text-xl font-semibold mb-2 text-[#574CDC]">Welcome to Genesis Gates</h1>
         <p className="text-slate-300 mb-4">
           Your family history with decentralized storage and centralized control.
         </p>
@@ -96,7 +97,7 @@ export default function HomePage() {
       </div>
 
       <div className="card">
-        <div className="text-sm font-semibold mb-2">How it works</div>
+        <div className="text-sm font-semibold mb-2 text-[#574CDC]">How it works</div>
         <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-300">
           <li>Create a Tree ID (you control who can edit).</li>
           <li>Build your family data locally in the browser.</li>
