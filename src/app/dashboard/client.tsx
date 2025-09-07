@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserProvider } from 'ethers';
+import { useRouter } from 'next/navigation';
 
 type Family = { id: string; treeKey: string; name: string; role: 'admin'|'editor'|'viewer'; createdAt: string };
 type Person = { id: string; name: string; birthDate: string|null; deathDate: string|null; lat?: number|null; lon?: number|null; createdAt: string };
@@ -28,6 +29,7 @@ export default function DashboardClient({ email }: { email: string }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string|null>(null);
 
+  const [openTreeId, setOpenTreeId] = useState('');
   const [newFamilyName, setNewFamilyName] = useState('');
   const [selectedFamilyId, setSelectedFamilyId] = useState<string>('');
   const activeFamily = useMemo(() => families.find(f=>f.id===selectedFamilyId) || null, [families, selectedFamilyId]);
@@ -43,6 +45,7 @@ export default function DashboardClient({ email }: { email: string }) {
 
   const [walletAddress, setWalletAddress] = useState<string|null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
+const router = useRouter();
 
   async function loadFamilies() {
     setLoading(true); setErr(null);
@@ -57,6 +60,17 @@ export default function DashboardClient({ email }: { email: string }) {
     } finally { setLoading(false); }
   }
 
+function openTree() {
+    const id = openTreeId.trim();
+    if (!id) return;
+    const f = families.find(f => f.treeKey === id);
+    if (f && f.role !== 'viewer') {
+      router.push('/tree/' + f.id);
+    } else {
+      router.push('/view/' + id);
+    }
+  }
+
   async function createFamily() {
     setLoading(true); setErr(null);
     try {
@@ -68,6 +82,7 @@ export default function DashboardClient({ email }: { email: string }) {
       const j = await jsonOrThrow(r);
       setNewFamilyName('');
       await loadFamilies();
+      await loadPeople(j.id);
       setSelectedFamilyId(j.id);
     } catch(e:any) {
       setErr(e.message);
@@ -163,6 +178,7 @@ export default function DashboardClient({ email }: { email: string }) {
   }
 
   async function loadPeople(familyId:string) {
+    if (!familyId) return;
     try {
       const r = await fetch('/api/person/list', {
         method:'POST',
@@ -207,6 +223,15 @@ export default function DashboardClient({ email }: { email: string }) {
             {walletLoading ? 'Verifying…' : 'Verify Wallet'}
           </button>
         )}
+      </div>
+      
+<div className="card">
+        <h2 className="font-medium mb-2">Open Tree</h2>
+        <div className="flex gap-2">
+          <input className="input flex-1" placeholder="Enter Tree ID"
+            value={openTreeId} onChange={e=>setOpenTreeId(e.target.value)} />
+          <button className="btn" onClick={openTree} disabled={!openTreeId}>Open</button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
