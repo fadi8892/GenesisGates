@@ -1,7 +1,12 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
 import Image from "next/image";
+import SignOutButton from "@/components/SignOutButton";
+import { getSessionOrNull } from "@/lib/auth";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Genesis Gates",
@@ -13,11 +18,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const session = getSessionOrNull();
   return (
     <html lang="en">
-      <body className="font-sans">
+      <body className={inter.className}>
         {/* Header with clickable logo */}
-        <header className="flex items-center p-4 bg-[#1B1F2C] border-b border-[#574CDC]/20">
+        <header className="flex items-center p-4 shadow-md">
           <Link href="/" passHref>
             <Image
               src="/logo.svg"
@@ -29,18 +35,19 @@ export default function RootLayout({
             />
           </Link>
 
-          <nav className="ml-auto flex gap-6 text-sm text-[#F9F9F9]">
-            <Link href="/dashboard" className="hover:text-[#574CDC] transition">
+          <nav className="ml-auto flex gap-6">
+            <Link href="/dashboard" className="hover:underline">
               Dashboard
             </Link>
-            <Link href="/about" className="hover:text-[#574CDC] transition">
+            <Link href="/about" className="hover:underline">
               About
             </Link>
+            {session && <SignOutButton />}
           </nav>
         </header>
 
         {/* Main content */}
-        <main className="p-6 container">{children}</main>
+        <main className="p-6">{children}</main>
       </body>
     </html>
   );
