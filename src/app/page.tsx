@@ -1,13 +1,19 @@
 'use client';
-import { useState } from 'react';
+import Link from "next/link";
 
-export default function Landing() {
-  const [email, setEmail] = useState<any>('');  // accept any, coerce on send
-  const [code, setCode] = useState<any>('');    // accept any, coerce on send
-  const [phase, setPhase] = useState<'start' | 'verify'>('start');
-  const [devCode, setDevCode] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+export default function Home() {
+  return (
+    <main className="max-w-3xl mx-auto py-16 px-6">
+      <h1 className="text-3xl font-bold mb-4">Genesis Gates</h1>
+      <p className="mb-6">Welcome. Your deploy is live.</p>
+      <div className="flex gap-4">
+        <Link href="/dashboard" className="px-4 py-2 rounded bg-black text-white">Go to Dashboard</Link>
+        <Link href="/tree/demo" className="px-4 py-2 rounded bg-gray-200">Open Demo Tree</Link>
+      </div>
+    </main>
+  );
+}
+
 
   async function start() {
     setLoading(true);
