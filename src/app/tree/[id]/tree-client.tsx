@@ -1,11 +1,13 @@
+// src/app/tree/[id]/tree-client.tsx
 'use client';
+
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 
 type Person = {
   id: string;
   name?: string;
-  sex?: 'M'|'F'|'U';
+  sex?: 'M' | 'F' | 'U';
   birthDate?: string;
   birthPlace?: string;
   deathDate?: string;
@@ -17,13 +19,28 @@ export type State = {
   people: Person[];
   links: { parentId: string; childId: string }[];
   spouses: [string, string][];
-  geoCache: Record<string,{lat:number,lon:number}>;
+  geoCache: Record<string, { lat: number; lon: number }>;
 };
 
+// Lazy widgets (no SSR)
 const LeafletMap = dynamic(() => import('./widgets/LeafletMap'), { ssr: false });
 
-function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-function placeKey(q:string){ return (q||'').trim().toLowerCase(); }
+// ---- Inline stub for Members to avoid module-not-found during build ----
+function Members({ treeId }: { treeId: string }) {
+  return (
+    <div className="text-sm text-slate-600">
+      Members widget not installed yet. (treeId: {treeId})
+    </div>
+  );
+}
+// -----------------------------------------------------------------------
+
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+function placeKey(q: string) {
+  return (q || '').trim().toLowerCase();
+}
 function toISODate(value?: string) {
   if (!value) return '';
   const v = String(value).trim();
@@ -31,26 +48,19 @@ function toISODate(value?: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
   const m = v.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
   if (m) {
-    let mm = m[1], dd = m[2], yyyy = m[3];
-    if (parseInt(dd,10) > 12) [dd, mm] = [mm, dd];
-    const pad = (n:number)=> n.toString().padStart(2,'0');
+    let mm = m[1],
+      dd = m[2],
+      yyyy = m[3];
+    if (parseInt(dd, 10) > 12) [dd, mm] = [mm, dd];
+    const pad = (n: number) => n.toString().padStart(2, '0');
     return `${yyyy}-${pad(parseInt(mm))}-${pad(parseInt(dd))}`;
   }
   const d = new Date(v);
   if (!isNaN(d.getTime())) {
-    const pad = (n:number)=> n.toString().padStart(2,'0');
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
   }
   return '';
-}
-
-async function fetchPlaces(q: string) {
-  if (!q || q.trim().length < 3) return [];
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`;
-  const r = await fetch(url, { headers: { 'accept':'application/json' } });
-  if (!r.ok) return [];
-  const j = await r.json();
-  return (j||[]).map((it:any)=>({ label: it.display_name, lat: parseFloat(it.lat), lon: parseFloat(it.lon) }));
 }
 
 export type TreeClientProps = {
@@ -60,23 +70,24 @@ export type TreeClientProps = {
 };
 
 export default function TreeClient({ treeId, initialState, readOnly = false }: TreeClientProps) {
-  const [tab, setTab] = useState<'overview'|'tree'|'map'|'settings'>(
-    'overview'
-  );
+  const [tab, setTab] = useState<'overview' | 'tree' | 'map' | 'settings'>('overview');
+
+  // Local state: load/save per-tree
   const [state, setState] = useState<State>(() => {
     if (initialState) return structuredClone(initialState);
     const k = `gg:tree:${treeId}`;
     const s = typeof window !== 'undefined' ? window.localStorage.getItem(k) : null;
-    return s ? JSON.parse(s) : { people: [], links: [], spouses: [], geoCache: {} };
+    return s ? (JSON.parse(s) as State) : { people: [], links: [], spouses: [], geoCache: {} };
   });
   const saveLocal = (s: State) => {
     if (readOnly) return;
     setState(s);
-    if (typeof window !== 'undefined')
+    if (typeof window !== 'undefined') {
       localStorage.setItem(`gg:tree:${treeId}`, JSON.stringify(s));
+    }
   };
 
-  // quick add
+  // Quick add
   const [quickName, setQuickName] = useState('');
 
   function quickAddPerson() {
@@ -89,61 +100,110 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
     setQuickName('');
   }
 
-  // place inputs autocomplete support
+  // Place inputs autocomplete support
   const [placeQuery, setPlaceQuery] = useState('');
-  const [placeOpts, setPlaceOpts] = useState<{label:string,lat:number,lon:number}[]>([]);
-  useEffect(()=>{
-    const t = setTimeout(async ()=>{
-      setPlaceOpts(await fetchPlaces(placeQuery));
-    }, 300);
-    return ()=> clearTimeout(t);
+  const [placeResults, setPlaceResults] = useState<Array<{ label: string; lat: number; lon: number }>>([]);
+  const [placeLoading, setPlaceLoading] = useState(false);
+
+  // Debounced place lookup
+  useEffect(() => {
+    const q = placeQuery.trim();
+    if (!q) {
+      setPlaceResults([]);
+      return;
+    }
+
+    setPlaceLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/places/search?q=${encodeURIComponent(q)}`);
+        if (!r.ok) throw new Error('Place search failed');
+        const j = await r.json();
+        const arr = Array.isArray(j?.results) ? j.results : [];
+        // Normalize to {label,lat,lon}
+        const norm = arr
+          .map((it: any) => ({
+            label: it?.label || it?.display_name || it?.name || '',
+            lat: Number(it?.lat),
+            lon: Number(it?.lon),
+          }))
+          .filter((it: any) => it.label && isFinite(it.lat) && isFinite(it.lon));
+        setPlaceResults(norm);
+      } catch {
+        setPlaceResults([]);
+      } finally {
+        setPlaceLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(t);
   }, [placeQuery]);
 
-@@ -96,145 +107,273 @@ export default function TreeClient({ treeId }: { treeId: string }) {
+  // Options for datalist
+  const placeOpts = placeResults;
+
+  // Map points: birth/residence/death with cached geocodes
+  const [filters, setFilters] = useState({ birth: true, residence: true, death: true });
+  const points = useMemo(() => {
+    const pts: { lat: number; lon: number; label: string; type: 'birth' | 'residence' | 'death' }[] = [];
+    for (const p of state.people) {
+      const push = (place: string | undefined, type: 'birth' | 'residence' | 'death') => {
+        if (!place) return;
+        const key = placeKey(place);
+        const g = state.geoCache[key];
+        if (g) pts.push({ lat: g.lat, lon: g.lon, label: `${p.name || 'Unknown'} — ${place}`, type });
+      };
+      push(p.birthPlace, 'birth');
+      push(p.residencePlace, 'residence');
+      push(p.deathPlace, 'death');
+    }
+    return pts.filter((pt) => filters[pt.type]);
+  }, [state, filters]);
+
+  // Snapshot publishing controls
+  const [provider, setProvider] = useState<'web3storage'>('web3storage');
+  const [mode, setMode] = useState<'byo' | 'managed'>('byo');
+  const [byoToken, setByoToken] = useState('');
+  const [pubStatus, setPubStatus] = useState<string>('');
 
   async function publish() {
-    setPubStatus('Publishing…');
-    const body = { treeId, provider, mode, byoToken: mode==='byo'?byoToken:undefined, json: state };
-    const r = await fetch('/api/storage/snapshot', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(body)});
-    const j = await r.json();
-    if (!r.ok) { setPubStatus(j.error || 'Failed'); return; }
-    setPubStatus(`Published CID: ${j.cid} (${Math.ceil(j.bytes/1024)} KB)`);
+    try {
+      setPubStatus('Publishing…');
+      const body: any = { treeId, provider, mode, json: state };
+      if (mode === 'byo') body.byoToken = byoToken || undefined;
+
+      const r = await fetch('/api/storage/snapshot', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setPubStatus(j?.error || 'Failed');
+        return;
+      }
+      const kb = j?.bytes ? ` (${Math.ceil(j.bytes / 1024)} KB)` : '';
+      setPubStatus(`Published CID: ${j?.cid ?? 'unknown'}${kb}`);
+    } catch (e: any) {
+      setPubStatus(e?.message || 'Failed');
+    }
   }
 
-  const peopleList = useMemo(()=>state.people, [state.people]);
+  const peopleList = useMemo(() => state.people, [state.people]);
 
-  const points = useMemo(()=>{
-    const pts: {lat:number, lon:number, label:string}[] = [];
-    for (const p of state.people) {
-      const places = [p.birthPlace, p.residencePlace, p.deathPlace].filter(Boolean) as string[];
-      for (const pl of places) {
-        const key = placeKey(pl);
-        const g = state.geoCache[key];
-        if (g) pts.push({ lat: g.lat, lon: g.lon, label: `${p.name || 'Unknown'} — ${pl}` });
-      }
-    }
-    return pts;
-  }, [state]);
-
-  const tabs = readOnly
-    ? (['overview', 'tree', 'map'] as const)
-    : (['overview', 'tree', 'map', 'settings'] as const);
+  const tabs = readOnly ? (['overview', 'tree', 'map'] as const) : (['overview', 'tree', 'map', 'settings'] as const);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        {tabs.map(t => (
-          <button
-            key={t}
-            className={`tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
-          >
+        {tabs.map((t) => (
+          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
             {t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
 
-      {tab==='overview' && (
+      {tab === 'overview' && (
         <div className="card space-y-4">
           {!readOnly && (
             <div className="flex gap-2">
@@ -151,8 +211,8 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                 className="input flex-1"
                 placeholder="Add a person by name…"
                 value={quickName}
-                onChange={e => setQuickName(e.target.value)}
-                onKeyDown={e => {
+                onChange={(e) => setQuickName(e.target.value)}
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     quickAddPerson();
@@ -166,20 +226,26 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
           )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-slate-500">
-                <th className="py-2">Name</th><th>Sex</th><th>Birth</th><th>Death</th><th>Residence</th>
-              </tr></thead>
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="py-2">Name</th>
+                  <th>Sex</th>
+                  <th>Birth</th>
+                  <th>Death</th>
+                  <th>Residence</th>
+                </tr>
+              </thead>
               <tbody>
-                {peopleList.map(p => (
+                {peopleList.map((p) => (
                   <tr key={p.id} className="border-t">
                     <td className="py-2">
                       <input
                         className="input w-full"
                         disabled={readOnly}
                         value={p.name || ''}
-                        onChange={e => {
+                        onChange={(e) => {
                           const n = structuredClone(state);
-                          const q = n.people.find(x => x.id === p.id)!;
+                          const q = n.people.find((x) => x.id === p.id)!;
                           q.name = e.target.value;
                           saveLocal(n);
                         }}
@@ -190,9 +256,9 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                         className="input"
                         disabled={readOnly}
                         value={p.sex || 'U'}
-                        onChange={e => {
+                        onChange={(e) => {
                           const n = structuredClone(state);
-                          const q = n.people.find(x => x.id === p.id)!;
+                          const q = n.people.find((x) => x.id === p.id)!;
                           q.sex = e.target.value as any;
                           saveLocal(n);
                         }}
@@ -209,9 +275,9 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           className="input"
                           disabled={readOnly}
                           value={p.birthDate || ''}
-                          onChange={e => {
+                          onChange={(e) => {
                             const n = structuredClone(state);
-                            const q = n.people.find(x => x.id === p.id)!;
+                            const q = n.people.find((x) => x.id === p.id)!;
                             const iso = toISODate(e.target.value);
                             if (iso) q.birthDate = iso;
                             else delete q.birthDate;
@@ -222,17 +288,17 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           className="input place-input"
                           disabled={readOnly}
                           placeholder="Birth place"
-                          list={"dl-" + p.id + "-birth"}
+                          list={'dl-' + p.id + '-birth'}
                           value={p.birthPlace || ''}
-                          onChange={e => {
+                          onChange={(e) => {
                             setPlaceQuery(e.target.value);
                             const n = structuredClone(state);
-                            const q = n.people.find(x => x.id === p.id)!;
+                            const q = n.people.find((x) => x.id === p.id)!;
                             q.birthPlace = e.target.value;
                             saveLocal(n);
                           }}
-                          onBlur={e => {
-                            const opt = placeOpts.find(o => o.label === e.target.value);
+                          onBlur={(e) => {
+                            const opt = placeOpts.find((o) => o.label === e.target.value);
                             if (opt) {
                               const n = structuredClone(state);
                               n.geoCache[placeKey(opt.label)] = {
@@ -243,8 +309,10 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                             }
                           }}
                         />
-                        <datalist id={"dl-"+p.id+"-birth"}>
-                          {placeOpts.map(o=> <option key={o.label} value={o.label} />)}
+                        <datalist id={'dl-' + p.id + '-birth'}>
+                          {placeOpts.map((o) => (
+                            <option key={o.label} value={o.label} />
+                          ))}
                         </datalist>
                       </div>
                     </td>
@@ -255,9 +323,9 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           className="input"
                           disabled={readOnly}
                           value={p.deathDate || ''}
-                          onChange={e => {
+                          onChange={(e) => {
                             const n = structuredClone(state);
-                            const q = n.people.find(x => x.id === p.id)!;
+                            const q = n.people.find((x) => x.id === p.id)!;
                             const iso = toISODate(e.target.value);
                             if (iso) q.deathDate = iso;
                             else delete q.deathDate;
@@ -268,17 +336,17 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           className="input place-input"
                           disabled={readOnly}
                           placeholder="Death place"
-                          list={"dl-" + p.id + "-death"}
+                          list={'dl-' + p.id + '-death'}
                           value={p.deathPlace || ''}
-                          onChange={e => {
+                          onChange={(e) => {
                             setPlaceQuery(e.target.value);
                             const n = structuredClone(state);
-                            const q = n.people.find(x => x.id === p.id)!;
+                            const q = n.people.find((x) => x.id === p.id)!;
                             q.deathPlace = e.target.value;
                             saveLocal(n);
                           }}
-                          onBlur={e => {
-                            const opt = placeOpts.find(o => o.label === e.target.value);
+                          onBlur={(e) => {
+                            const opt = placeOpts.find((o) => o.label === e.target.value);
                             if (opt) {
                               const n = structuredClone(state);
                               n.geoCache[placeKey(opt.label)] = {
@@ -289,8 +357,10 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                             }
                           }}
                         />
-                        <datalist id={"dl-"+p.id+"-death"}>
-                          {placeOpts.map(o=> <option key={o.label} value={o.label} />)}
+                        <datalist id={'dl-' + p.id + '-death'}>
+                          {placeOpts.map((o) => (
+                            <option key={o.label} value={o.label} />
+                          ))}
                         </datalist>
                       </div>
                     </td>
@@ -299,17 +369,17 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                         className="input place-input w-56"
                         disabled={readOnly}
                         placeholder="Residence"
-                        list={"dl-" + p.id + "-res"}
+                        list={'dl-' + p.id + '-res'}
                         value={p.residencePlace || ''}
-                        onChange={e => {
+                        onChange={(e) => {
                           setPlaceQuery(e.target.value);
                           const n = structuredClone(state);
-                          const q = n.people.find(x => x.id === p.id)!;
+                          const q = n.people.find((x) => x.id === p.id)!;
                           q.residencePlace = e.target.value;
                           saveLocal(n);
                         }}
-                        onBlur={e => {
-                          const opt = placeOpts.find(o => o.label === e.target.value);
+                        onBlur={(e) => {
+                          const opt = placeOpts.find((o) => o.label === e.target.value);
                           if (opt) {
                             const n = structuredClone(state);
                             n.geoCache[placeKey(opt.label)] = {
@@ -320,8 +390,10 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           }
                         }}
                       />
-                      <datalist id={"dl-"+p.id+"-res"}>
-                        {placeOpts.map(o=> <option key={o.label} value={o.label} />)}
+                      <datalist id={'dl-' + p.id + '-res'}>
+                        {placeOpts.map((o) => (
+                          <option key={o.label} value={o.label} />
+                        ))}
                       </datalist>
                     </td>
                   </tr>
@@ -332,38 +404,73 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
         </div>
       )}
 
-      {tab==='tree' && (
+      {tab === 'tree' && (
         <div className="card">
           <div className="text-sm text-slate-600 mb-2">Graph view (simple)</div>
           <ul className="list-disc pl-6 text-sm">
-            {peopleList.map(p => <li key={p.id}>{p.name || '—'}</li>)}
+            {peopleList.map((p) => (
+              <li key={p.id}>{p.name || '—'}</li>
+            ))}
           </ul>
         </div>
       )}
 
-      {tab==='map' && (
-        <div className="card">
+      {tab === 'map' && (
+        <div className="card space-y-2">
+          <div className="flex gap-4 text-sm">
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={filters.birth}
+                onChange={() => setFilters((f) => ({ ...f, birth: !f.birth }))}
+              />
+              Birth
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={filters.residence}
+                onChange={() => setFilters((f) => ({ ...f, residence: !f.residence }))}
+              />
+              Residence
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={filters.death}
+                onChange={() => setFilters((f) => ({ ...f, death: !f.death }))}
+              />
+              Death
+            </label>
+          </div>
           <LeafletMap points={points} />
         </div>
       )}
 
-      {!readOnly && tab==='settings' && (
+      {!readOnly && tab === 'settings' && (
         <div className="grid md:grid-cols-2 gap-4">
           <div className="card space-y-2">
             <div className="text-sm font-semibold">Publish Snapshot</div>
             <div className="flex gap-2">
-              <select className="input" value={provider} onChange={e=>setProvider(e.target.value as any)}>
+              <select className="input" value={provider} onChange={(e) => setProvider(e.target.value as any)}>
                 <option value="web3storage">Web3.Storage</option>
               </select>
-              <select className="input" value={mode} onChange={e=>setMode(e.target.value as any)}>
+              <select className="input" value={mode} onChange={(e) => setMode(e.target.value as any)}>
                 <option value="byo">BYO Token</option>
                 <option value="managed">Managed</option>
               </select>
             </div>
-            {mode==='byo' && (
-              <input className="input w-full" placeholder="Your Web3.Storage token" value={byoToken} onChange={e=>setByoToken(e.target.value)} />
+            {mode === 'byo' && (
+              <input
+                className="input w-full"
+                placeholder="Your Web3.Storage token"
+                value={byoToken}
+                onChange={(e) => setByoToken(e.target.value)}
+              />
             )}
-            <button className="btn" onClick={publish}>Publish</button>
+            <button className="btn" onClick={publish}>
+              Publish
+            </button>
             {pubStatus && <div className="text-xs text-slate-600">{pubStatus}</div>}
           </div>
 
@@ -373,3 +480,5 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
         </div>
       )}
     </div>
+  );
+}
