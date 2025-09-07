@@ -5,16 +5,23 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const STRIPE_SECRET_KEY     = process.env.STRIPE_SECRET_KEY     ?? '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';
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? 'whsec_bBcZIbidthoWoowrYJqKl33JEVECvMAP';
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) {
+    console.error(`Missing required env var: ${name}`);
+    throw new Error(`Missing required env var: ${name}`);
+  }
+  return v;
+}
+
+const STRIPE_SECRET_KEY     = requireEnv('STRIPE_SECRET_KEY');
+const STRIPE_WEBHOOK_SECRET = requireEnv('STRIPE_WEBHOOK_SECRET');
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
 export async function POST(req: NextRequest) {
   const sig = req.headers.get('stripe-signature');
-  if (!sig) {
-    return new NextResponse('Missing Stripe signature', { status: 400 });
-  }
+  if (!sig) return new NextResponse('Missing Stripe signature', { status: 400 });
 
   let event: Stripe.Event;
   try {
