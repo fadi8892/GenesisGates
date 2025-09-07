@@ -90,16 +90,36 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
   }
 
   // place inputs autocomplete support
-  const [placeQuery, setPlaceQuery] = useState('');
-  const [placeOpts, setPlaceOpts] = useState<{label:string,lat:number,lon:number}[]>([]);
-  useEffect(()=>{
-    const t = setTimeout(async ()=>{
-      setPlaceOpts(await fetchPlaces(placeQuery));
-    }, 300);
-    return ()=> clearTimeout(t);
-  }, [placeQuery]);
+const [placeQuery, setPlaceQuery] = useState('');
+const [placeResults, setPlaceResults] = useState<any[]>([]);
+const [placeLoading, setPlaceLoading] = useState(false);
 
-@@ -96,145 +107,273 @@ export default function TreeClient({ treeId }: { treeId: string }) {
+// Debounced place lookup
+useEffect(() => {
+  const q = placeQuery.trim();
+  if (!q) {
+    setPlaceResults([]);
+    return;
+  }
+
+  setPlaceLoading(true);
+  const t = setTimeout(async () => {
+    try {
+      // Replace with your endpoint or lookup util
+      const r = await fetch(`/api/places/search?q=${encodeURIComponent(q)}`);
+      if (!r.ok) throw new Error('Place search failed');
+      const j = await r.json();
+      setPlaceResults(Array.isArray(j?.results) ? j.results : []);
+    } catch (e) {
+      setPlaceResults([]);
+      // optionally log
+    } finally {
+      setPlaceLoading(false);
+    }
+  }, 350);
+
+  return () => clearTimeout(t);
+}, [placeQuery]);
 
   async function publish() {
     setPubStatus('Publishing…');
