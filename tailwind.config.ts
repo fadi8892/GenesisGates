@@ -1,10 +1,11 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
-  content: ["./src/**/*.{ts,tsx}"],
-  theme: {
-    extend: {},
+// next.config.mjs
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  experimental: {
+    serverActions: { allowedOrigins: ['*'] },
   },
-  plugins: [require("tailwindcss-animate")],
+  // Add other config here as needed
 };
-export default config;
+
+export default nextConfig;
