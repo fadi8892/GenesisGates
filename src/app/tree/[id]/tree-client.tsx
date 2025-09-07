@@ -24,10 +24,16 @@ export type State = {
 
 // Lazy widgets (no SSR)
 const LeafletMap = dynamic(() => import('./widgets/LeafletMap'), { ssr: false });
-// If you already have a Members widget, this will load it; otherwise create one at this path.
-const Members = dynamic(() => import('./widgets/Members').catch(() => ({ default: () => null })), {
-  ssr: false,
-});
+
+// ---- Inline stub for Members to avoid module-not-found during build ----
+function Members({ treeId }: { treeId: string }) {
+  return (
+    <div className="text-sm text-slate-600">
+      Members widget not installed yet. (treeId: {treeId})
+    </div>
+  );
+}
+// -----------------------------------------------------------------------
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
