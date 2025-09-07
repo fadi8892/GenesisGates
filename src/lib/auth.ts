@@ -69,6 +69,8 @@ export async function verifyOtp(emailRaw: unknown, codeRaw: unknown) {
     secure: true,
     sameSite: 'lax',
     path: '/',
+   maxAge: 60 * 60 * 24 * 7,
+    expires: new Date(Date.now() + 60 * 60 * 24 * 7 * 1000),
   });
 
   return { ok: true };

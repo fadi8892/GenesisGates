@@ -2,13 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
-body { @apply bg-slate-50 text-slate-900; }
-.container { @apply max-w-6xl mx-auto px-4; }
-.card { @apply bg-white rounded-2xl shadow p-4; }
-.btn { @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700; }
-.input { @apply rounded-xl border px-3 py-2 bg-white; }
-.badge { @apply rounded-lg bg-slate-100 px-2 py-1 text-xs; }
-.tab { @apply rounded-lg px-3 py-1.5 bg-slate-100; }
-.tab.active { @apply bg-indigo-100 text-indigo-700; }
-hr { @apply border-slate-200; }
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply min-h-screen bg-[#171B29] text-[#F9F9F9] antialiased;
+}
+
+.container {
+  @apply max-w-6xl mx-auto px-4;
+}
+
+.card {
+  @apply bg-[#1B1F2C] border border-[#574CDC]/20 rounded-2xl shadow-lg p-4;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium bg-[#574CDC] text-white hover:bg-[#6A5DFF] transition;
+}
+
+.input {
+  @apply rounded-xl border border-[#574CDC]/30 bg-[#1B1F2C] px-3 py-2 text-[#F9F9F9] placeholder:text-gray-400 focus:border-[#574CDC] focus:outline-none;
+}
+
+.badge {
+  @apply rounded-lg bg-[#574CDC]/20 px-2 py-1 text-xs;
+}
+
+.tab {
+  @apply rounded-lg px-3 py-1.5 bg-[#1B1F2C] hover:bg-[#574CDC]/20;
+}
+
+.tab.active {
+  @apply bg-[#574CDC] text-white;
+}
+
+hr {
+  @apply border-[#574CDC]/20;
+}

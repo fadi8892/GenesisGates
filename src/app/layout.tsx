@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import Image from "next/image";
+import SignOutButton from "@/components/SignOutButton";
+import { getSessionOrNull } from "@/lib/auth";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,6 +18,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const session = getSessionOrNull();
   return (
     <html lang="en">
       <body className={inter.className}>
@@ -39,6 +42,7 @@ export default function RootLayout({
             <Link href="/about" className="hover:underline">
               About
             </Link>
+            {session && <SignOutButton />}
           </nav>
         </header>
 

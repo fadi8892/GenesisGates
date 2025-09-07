@@ -1,17 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
-export default function Landing() {
+export default function LoginClient() {
   const [email, setEmail] = useState<any>('');  // accept any, coerce on send
   const [code, setCode] = useState<any>('');    // accept any, coerce on send
   const [phase, setPhase] = useState<'start' | 'verify'>('start');
   const [devCode, setDevCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [treeId, setTreeId] = useState('');
-
-  const router = useRouter();
 
   async function start() {
     setLoading(true);
@@ -57,12 +53,6 @@ export default function Landing() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function viewTree() {
-    const id = String(treeId ?? '').trim();
-    if (!id) return;
-    router.push('/view/' + id);
   }
 
   return (
@@ -113,21 +103,6 @@ export default function Landing() {
           <li>Build your family data locally in the browser.</li>
           <li>Publish snapshots to IPFS (BYO token or managed).</li>
         </ol>
-      </div>
-
-      <div className="card">
-        <div className="text-sm font-semibold mb-2">View a Family Tree</div>
-        <div className="space-y-2">
-          <input
-            className="input w-full"
-            placeholder="Enter Tree ID"
-            value={treeId}
-            onChange={(e) => setTreeId(e.target.value)}
-          />
-          <button className="btn" onClick={viewTree} disabled={!treeId}>
-            View Tree
-          </button>
-        </div>
       </div>
     </div>
   );

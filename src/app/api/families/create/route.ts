@@ -2,17 +2,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { ensureSchema, sql } from '@/lib/db';
 import { requireSession } from '@/lib/auth';
-import { userRoleInTree, canEdit } from '@/lib/acl';
+import { newTreeId } from '@/lib/id';
 
 export const runtime = 'nodejs';
 
 const Schema = z.object({
-  familyId: z.string().uuid(),
   name: z.string().min(1).max(140),
-  birthDate: z.string().optional(), // YYYY-MM-DD (optional)
-  deathDate: z.string().optional(),
-  lat: z.number().optional(),
-  lon: z.number().optional(),
 });
 
 export async function POST(req: Request) {
@@ -20,21 +15,11 @@ export async function POST(req: Request) {
     await ensureSchema();
     const session = requireSession();
     const data = Schema.parse(await req.json());
-    const treeId = data.familyId;
-    const role = await userRoleInTree(session.userId, treeId);
-    if (!canEdit(role)) throw new Error('No edit permission');
-
-    const birth = data.birthDate && /^\d{4}-\d{2}-\d{2}$/.test(data.birthDate) ? data.birthDate : null;
-    const death = data.deathDate && /^\d{4}-\d{2}-\d{2}$/.test(data.deathDate) ? data.deathDate : null;
-
-    const res = await sql`
-      INSERT INTO persons (tree_id, name, birth_date, death_date, lat, lon, created_by)
-      VALUES (${treeId}, ${data.name}, ${birth}, ${death}, ${data.lat ?? null}, ${data.lon ?? null}, ${session.email})
-
-             RETURNING id`;
-
-    return NextResponse.json({ id: res.rows[0].id }, { status: 200 });
+    const treeId = newTreeId();
+    const ins = await sql`insert into trees (tree_key, name, created_by) values (${treeId}, ${data.name}, ${session.userId}) returning id`;
+    await sql`insert into tree_members (tree_id, user_id, role) values (${ins.rows[0].id}, ${session.userId}, 'admin')`;
+    return NextResponse.json({ id: treeId }, { status: 200 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed to add person' }, { status: 400 });
+    return NextResponse.json({ error: e?.message || 'Failed to create family' }, { status: 400 });
   }
 }
