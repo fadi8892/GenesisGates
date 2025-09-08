@@ -27,8 +27,6 @@ export type State = {
 // Lazy widgets (no SSR)
 const LeafletMap = dynamic(() => import('./widgets/LeafletMap'), { ssr: false });
 
-// Remove inline stub; replaced with MembersClient.
-
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
@@ -216,7 +214,9 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
 
   const peopleList = useMemo(() => state.people, [state.people]);
 
-  const tabs = readOnly ? (['overview', 'tree', 'map'] as const) : (['overview', 'tree', 'map', 'settings'] as const);
+  const tabs = readOnly
+    ? (['overview', 'tree', 'map'] as const)
+    : (['overview', 'tree', 'map', 'settings'] as const);
 
   return (
     <div className="space-y-4">
@@ -350,7 +350,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           value={p.deathDate || ''}
                           onChange={(e) => {
                             const n = structuredClone(state);
-                            const q = n.people find((x) => x.id === p.id)!;
+                            const q = n.people.find((x) => x.id === p.id)!;
                             const iso = toISODate(e.target.value);
                             if (iso) q.deathDate = iso;
                             else delete q.deathDate;
@@ -404,11 +404,11 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           saveLocal(n);
                         }}
                         onBlur={(e) => {
-                          const opt = placeOpts find((o) => o label === e target value);
+                          const opt = placeOpts.find((o) => o.label === e.target.value);
                           if (opt) {
                             const n = structuredClone(state);
                             n.geoCache[placeKey(opt.label)] = {
-                              lat: opt lat,
+                              lat: opt.lat,
                               lon: opt.lon,
                             };
                             saveLocal(n);
