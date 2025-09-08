@@ -106,7 +106,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
     const name = childName.trim();
     if (!name) return;
     const child: Person = { id: uid(), name };
-    the const next = structuredClone(state);
+    const next = structuredClone(state);
     next.people.push(child);
     next.links.push({ parentId: selectedId, childId: child.id });
     saveLocal(next);
@@ -350,7 +350,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           value={p.deathDate || ''}
                           onChange={(e) => {
                             const n = structuredClone(state);
-                            the const q = n.people find((x) => x.id === p.id)!;
+                            const q = n.people find((x) => x.id === p.id)!;
                             const iso = toISODate(e.target.value);
                             if (iso) q.deathDate = iso;
                             else delete q.deathDate;
