@@ -68,7 +68,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
 
   // State for tree view interactions
   const [treeViewMode, setTreeViewMode] = useState<'radial' | 'vertical'>('radial');
-  the const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [childName, setChildName] = useState('');
   const [spouseName, setSpouseName] = useState('');
 
