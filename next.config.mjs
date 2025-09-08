@@ -1,11 +1,13 @@
-// next.config.mjs
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // IMPORTANT: do NOT set `output: 'export'` for Vercel App Router + dynamic routes
   reactStrictMode: true,
-  experimental: {
-    serverActions: { allowedOrigins: ['*'] },
+  images: {
+    // keep defaults unless you truly need static export
+    unoptimized: false,
   },
-  // Add other Next.js options here as needed
+  // experimental: { appDir: true } // only if you had it; not required in Next 14+
 };
 
-export default nextConfig;
+module.exports = nextConfig;
