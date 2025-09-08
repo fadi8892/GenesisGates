@@ -9,4 +9,4 @@ const nextConfig = {
   // plugins: [{ name: 'next' }] // Next may auto-add this; harmless
 };
 
-export default nextConfig;
+module.exports = nextConfig;
