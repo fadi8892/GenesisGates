@@ -1,7 +1,7 @@
 // next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Do NOT use output: 'export' on Vercel for this app
+  // Server build for Vercel (no static export)
   reactStrictMode: true,
   images: {
     unoptimized: false,
