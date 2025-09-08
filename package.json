@@ -10,10 +10,11 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@storacha/client": "^1.7.9",
+    "@storacha/client": "^1.0.0",
     "@vercel/kv": "1.0.1",
     "@vercel/postgres": "0.8.0",
     "ethers": "^6.11.0",
+    "formdata-node": "^6.0.3",
     "jsonwebtoken": "9.0.2",
     "leaflet": "1.9.4",
     "lucide-react": "0.468.0",
@@ -25,7 +26,6 @@
     "stripe": "14.25.0",
     "tailwind-merge": "2.5.2",
     "tailwindcss-animate": "1.0.7",
-    "@storacha/client": "^1.0.0",
     "zod": "3.23.8"
   },
   "devDependencies": {
