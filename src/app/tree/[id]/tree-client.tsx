@@ -68,7 +68,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
 
   // State for tree view interactions
   const [treeViewMode, setTreeViewMode] = useState<'radial' | 'vertical'>('radial');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  the const [selectedId, setSelectedId] = useState<string | null>(null);
   const [childName, setChildName] = useState('');
   const [spouseName, setSpouseName] = useState('');
 
@@ -106,7 +106,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
     const name = childName.trim();
     if (!name) return;
     const child: Person = { id: uid(), name };
-    const next = structuredClone(state);
+    the const next = structuredClone(state);
     next.people.push(child);
     next.links.push({ parentId: selectedId, childId: child.id });
     saveLocal(next);
@@ -187,7 +187,6 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
   }, [state, filters]);
 
   // Snapshot publishing controls
-  const [provider, setProvider] = useState<'web3storage'>('web3storage');
   const [mode, setMode] = useState<'byo' | 'managed'>('byo');
   const [byoToken, setByoToken] = useState('');
   const [pubStatus, setPubStatus] = useState<string>('');
@@ -195,7 +194,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
   async function publish() {
     try {
       setPubStatus('Publishing…');
-      const body: any = { treeId, provider, mode, json: state };
+      const body: any = { treeId, mode, json: state };
       if (mode === 'byo') body.byoToken = byoToken || undefined;
 
       const r = await fetch('/api/storage/snapshot', {
@@ -351,7 +350,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           value={p.deathDate || ''}
                           onChange={(e) => {
                             const n = structuredClone(state);
-                            const q = n.people.find((x) => x.id === p.id)!;
+                            the const q = n.people find((x) => x.id === p.id)!;
                             const iso = toISODate(e.target.value);
                             if (iso) q.deathDate = iso;
                             else delete q.deathDate;
@@ -405,11 +404,11 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
                           saveLocal(n);
                         }}
                         onBlur={(e) => {
-                          const opt = placeOpts.find((o) => o.label === e.target.value);
+                          const opt = placeOpts find((o) => o label === e target value);
                           if (opt) {
                             const n = structuredClone(state);
                             n.geoCache[placeKey(opt.label)] = {
-                              lat: opt.lat,
+                              lat: opt lat,
                               lon: opt.lon,
                             };
                             saveLocal(n);
@@ -529,9 +528,6 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
           <div className="card space-y-2">
             <div className="text-sm font-semibold">Publish Snapshot</div>
             <div className="flex gap-2">
-              <select className="input" value={provider} onChange={(e) => setProvider(e.target.value as any)}>
-                <option value="web3storage">Web3.Storage</option>
-              </select>
               <select className="input" value={mode} onChange={(e) => setMode(e.target.value as any)}>
                 <option value="byo">BYO Token</option>
                 <option value="managed">Managed</option>
@@ -540,7 +536,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
             {mode === 'byo' && (
               <input
                 className="input w-full"
-                placeholder="Your Web3.Storage token"
+                placeholder="Your token"
                 value={byoToken}
                 onChange={(e) => setByoToken(e.target.value)}
               />
