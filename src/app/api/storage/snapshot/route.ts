@@ -6,31 +6,23 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type BodyShape = {
-  treeId?: string;
-  json: unknown;
-  mode?: 'byo' | 'managed';
-  byoToken?: string;
-  token?: string;         // allow alt key
-  endpoint?: string;
+  json?: unknown;
   filename?: string;
+  // legacy fields may still be sent by the client, but we ignore them now:
+  // token?: string; byoToken?: string; endpoint?: string; mode?: 'byo' | 'managed';
 };
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as BodyShape;
 
-    if (!body || typeof body !== 'object' || !('json' in body)) {
+    if (!body || typeof body !== 'object' || body.json === undefined) {
       return NextResponse.json({ error: 'Missing "json" payload' }, { status: 400 });
     }
 
     const result = await uploadJSONSnapshot({
       json: body.json,
-      // prefer explicit token/byoToken if provided, else env
-      token: body.token ?? body.byoToken,
-      endpoint: body.endpoint,
       filename: body.filename ?? 'tree.json',
-      mode: body.mode,          // accepted by our helper signature
-      byoToken: body.byoToken,  // accepted by our helper signature
     });
 
     return NextResponse.json(result, { status: 200 });
