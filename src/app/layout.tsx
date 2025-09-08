@@ -42,6 +42,9 @@ export default function RootLayout({
             <Link href="/about" className="hover:underline">
               About
             </Link>
+            <Link href="/premium" className="hover:underline">
+              Premium
+            </Link>
             {session && <SignOutButton />}
           </nav>
         </header>

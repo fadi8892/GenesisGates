@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import FamilyTreeGraph from '@/components/FamilyTreeGraph';
 
 interface Snapshot {
   people: { id: string; name?: string }[];
@@ -40,11 +41,28 @@ export default function ViewerClient({ treeId }: { treeId: string }) {
 }
 
 function ReadOnlyTreeViewer({ snapshot }: { snapshot: Snapshot }) {
+  const [mode, setMode] = useState<'radial' | 'vertical'>('radial');
   return (
-    <ul className="list-disc pl-6 text-sm">
-      {snapshot.people.map(p => (
-        <li key={p.id}>{p.name || '—'}</li>
-      ))}
-    </ul>
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <button
+          className={`tab ${mode === 'radial' ? 'active' : ''}`}
+          onClick={() => setMode('radial')}
+        >
+          Circular
+        </button>
+        <button
+          className={`tab ${mode === 'vertical' ? 'active' : ''}`}
+          onClick={() => setMode('vertical')}
+        >
+          Hierarchy
+        </button>
+      </div>
+      <FamilyTreeGraph
+        state={{ people: snapshot.people, links: snapshot.links, spouses: snapshot.spouses, geoCache: {} }}
+        mode={mode}
+        readOnly={true}
+      />
+    </div>
   );
 }

@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import FamilyTreeGraph from '@/components/FamilyTreeGraph';
+import MembersClient from './members-client';
 
 type Person = {
   id: string;
@@ -25,15 +27,7 @@ export type State = {
 // Lazy widgets (no SSR)
 const LeafletMap = dynamic(() => import('./widgets/LeafletMap'), { ssr: false });
 
-// ---- Inline stub for Members to avoid module-not-found during build ----
-function Members({ treeId }: { treeId: string }) {
-  return (
-    <div className="text-sm text-slate-600">
-      Members widget not installed yet. (treeId: {treeId})
-    </div>
-  );
-}
-// -----------------------------------------------------------------------
+// Remove inline stub; replaced with MembersClient.
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -72,6 +66,12 @@ export type TreeClientProps = {
 export default function TreeClient({ treeId, initialState, readOnly = false }: TreeClientProps) {
   const [tab, setTab] = useState<'overview' | 'tree' | 'map' | 'settings'>('overview');
 
+  // State for tree view interactions
+  const [treeViewMode, setTreeViewMode] = useState<'radial' | 'vertical'>('radial');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [childName, setChildName] = useState('');
+  const [spouseName, setSpouseName] = useState('');
+
   // Local state: load/save per-tree
   const [state, setState] = useState<State>(() => {
     if (initialState) return structuredClone(initialState);
@@ -98,6 +98,32 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
     next.people.push(p);
     saveLocal(next);
     setQuickName('');
+  }
+
+  /** Add a child to the currently selected person (in tree view). */
+  function addChild() {
+    if (!selectedId) return;
+    const name = childName.trim();
+    if (!name) return;
+    const child: Person = { id: uid(), name };
+    const next = structuredClone(state);
+    next.people.push(child);
+    next.links.push({ parentId: selectedId, childId: child.id });
+    saveLocal(next);
+    setChildName('');
+  }
+
+  /** Add a spouse to the currently selected person (in tree view). */
+  function addSpouse() {
+    if (!selectedId) return;
+    const name = spouseName.trim();
+    if (!name) return;
+    const spouse: Person = { id: uid(), name };
+    const next = structuredClone(state);
+    next.people.push(spouse);
+    next.spouses.push([selectedId, spouse.id]);
+    saveLocal(next);
+    setSpouseName('');
   }
 
   // Place inputs autocomplete support
@@ -405,13 +431,64 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
       )}
 
       {tab === 'tree' && (
-        <div className="card">
-          <div className="text-sm text-slate-600 mb-2">Graph view (simple)</div>
-          <ul className="list-disc pl-6 text-sm">
-            {peopleList.map((p) => (
-              <li key={p.id}>{p.name || '—'}</li>
-            ))}
-          </ul>
+        <div className="card space-y-4">
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-2">
+            <button
+              className={`tab ${treeViewMode === 'radial' ? 'active' : ''}`}
+              onClick={() => setTreeViewMode('radial')}
+            >
+              Circular
+            </button>
+            <button
+              className={`tab ${treeViewMode === 'vertical' ? 'active' : ''}`}
+              onClick={() => setTreeViewMode('vertical')}
+            >
+              Hierarchy
+            </button>
+          </div>
+          <FamilyTreeGraph
+            state={state}
+            mode={treeViewMode === 'radial' ? 'radial' : 'vertical'}
+            selectedId={selectedId ?? undefined}
+            onSelect={(id) => setSelectedId(id)}
+            readOnly={readOnly}
+          />
+          {!readOnly && (
+            <div className="space-y-2">
+              <div className="text-sm text-slate-500">
+                {selectedId
+                  ? `Selected: ${state.people.find((p) => p.id === selectedId)?.name || selectedId}`
+                  : 'Select a person to add relatives'}
+              </div>
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex gap-2 flex-1">
+                  <input
+                    className="input flex-1"
+                    placeholder="New child name…"
+                    value={childName}
+                    onChange={(e) => setChildName(e.target.value)}
+                    disabled={!selectedId}
+                  />
+                  <button className="btn" onClick={addChild} disabled={!selectedId}>
+                    Add Child
+                  </button>
+                </div>
+                <div className="flex gap-2 flex-1">
+                  <input
+                    className="input flex-1"
+                    placeholder="New spouse name…"
+                    value={spouseName}
+                    onChange={(e) => setSpouseName(e.target.value)}
+                    disabled={!selectedId}
+                  />
+                  <button className="btn" onClick={addSpouse} disabled={!selectedId}>
+                    Add Spouse
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -475,7 +552,7 @@ export default function TreeClient({ treeId, initialState, readOnly = false }: T
           </div>
 
           <div className="card">
-            <Members treeId={treeId} />
+            <MembersClient treeId={treeId} />
           </div>
         </div>
       )}
