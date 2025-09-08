@@ -1,28 +1,31 @@
-// src/lib/storage.ts
-import { Web3Storage, File } from 'web3.storage';
+// NEW: src/lib/storage.ts
+import { create, File } from '@web3-storage/w3up-client';
 
 export interface PublishOptions {
-  provider?: 'web3storage' | 'storacha';
-  mode?: 'byo' | 'managed';
-  byoToken?: string;
+  provider?: 'storacha';          // default to storacha
+  mode?: 'managed' | 'byo';
+  // For BYO we now expect either an email login flow handled elsewhere,
+  // or a base64 UCAN delegation proof string (advanced).
+  byoProofBase64?: string;        // optional, advanced
   json: any;
 }
 
-export async function publishSnapshot(opts: PublishOptions): Promise<{ cid: string; bytes: number }> {
-  const raw = Buffer.from(JSON.stringify(opts.json, null, 2));
-  const bytes = raw.byteLength;
+export async function publishSnapshot(opts: PublishOptions) {
+  const client = await create();                 // creates an agent in-browser/server
+  // BYO path (advanced): user pastes a base64 delegation proof generated with the CLI
+  //   storacha delegation create --space <SPACE_DID> --to <AGENT_DID> --base64
+  if (opts.mode === 'byo' && opts.byoProofBase64) {
+    const space = await client.addSpace(opts.byoProofBase64);
+    await client.setCurrentSpace(space.did());
+  } else {
+    // Managed path: load your own pre-provisioned space (store proof securely in env/kv)
+    const proof = process.env.W3UP_PROOF_BASE64!;
+    const space = await client.addSpace(proof);
+    await client.setCurrentSpace(space.did());
+  }
 
-  const provider = opts.provider || 'web3storage';
-  if (provider !== 'web3storage') throw new Error('Only web3.storage supported in this build');
-
-  const token = opts.mode === 'byo'
-    ? (opts.byoToken || '')
-    : (process.env.WEB3_TOKEN || '');
-
-  if (!token) throw new Error('No token available for upload');
-
-  const client = new Web3Storage({ token });
+  const raw = new Blob([JSON.stringify(opts.json, null, 2)], { type: 'application/json' });
   const file = new File([raw], 'tree.json', { type: 'application/json' });
-  const cid = await client.put([file], { wrapWithDirectory: false });
-  return { cid, bytes };
+  const cid = await client.uploadFile(file);
+  return { cid: cid.toString(), bytes: raw.size };
 }
