@@ -9,4 +9,9 @@ const nextConfig = {
   // plugins: [{ name: 'next' }] // Next may auto-add this; harmless
 };
 
-module.exports = nextConfig;
+module.exports = {
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
+};
