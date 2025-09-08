@@ -1,28 +1,32 @@
 // src/lib/storage.ts
-import { Web3Storage, File } from 'web3.storage';
+import { create, File } from '@storacha/client'
 
 export interface PublishOptions {
-  provider?: 'web3storage' | 'storacha';
-  mode?: 'byo' | 'managed';
-  byoToken?: string;
-  json: any;
+  mode?: 'managed' | 'byo'
+  byoProofBase64?: string
+  json: any
 }
 
-export async function publishSnapshot(opts: PublishOptions): Promise<{ cid: string; bytes: number }> {
-  const raw = Buffer.from(JSON.stringify(opts.json, null, 2));
-  const bytes = raw.byteLength;
+export async function publishSnapshot(opts: PublishOptions) {
+  const client = await create()
 
-  const provider = opts.provider || 'web3storage';
-  if (provider !== 'web3storage') throw new Error('Only web3.storage supported in this build');
+  if (opts.mode === 'byo' && opts.byoProofBase64) {
+    // User provided a base64 UCAN delegation proof
+    const space = await client.addSpace(opts.byoProofBase64)
+    await client.setCurrentSpace(space.did())
+  } else {
+    // Managed mode: use proof stored in env variable
+    const proof = process.env.W3UP_PROOF_BASE64
+    if (!proof) throw new Error('Missing W3UP_PROOF_BASE64 in environment')
+    const space = await client.addSpace(proof)
+    await client.setCurrentSpace(space.did())
+  }
 
-  const token = opts.mode === 'byo'
-    ? (opts.byoToken || '')
-    : (process.env.WEB3_TOKEN || '');
+  const raw = new Blob([JSON.stringify(opts.json, null, 2)], {
+    type: 'application/json',
+  })
+  const file = new File([raw], 'tree.json', { type: 'application/json' })
+  const cid = await client.uploadFile(file)
 
-  if (!token) throw new Error('No token available for upload');
-
-  const client = new Web3Storage({ token });
-  const file = new File([raw], 'tree.json', { type: 'application/json' });
-  const cid = await client.put([file], { wrapWithDirectory: false });
-  return { cid, bytes };
+  return { cid: cid.toString(), bytes: raw.size }
 }
