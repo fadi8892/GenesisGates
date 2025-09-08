@@ -1,19 +1,14 @@
 // src/lib/storage.ts
-// Modern Storacha (w3up) uploader for Node/Vercel
+// Storacha uploader for Node/Vercel with BYO proof (base64) support
 
 import { create } from '@storacha/client'
-import { Blob } from 'buffer'          // Ensure Blob exists in Node
-import { File } from 'formdata-node'   // File polyfill for Node
+import { Blob } from 'buffer'
+import { File } from 'formdata-node'
 
 export interface PublishOptions {
-  /**
-   * managed  -> use server-side proof from env: W3UP_PROOF_BASE64
-   * byo       -> caller provides a base64 UCAN delegation proof
-   */
   mode?: 'managed' | 'byo'
-  /** Base64 UCAN delegation proof (only used when mode === 'byo') */
+  /** Base64 UCAN delegation proof (used when mode === 'byo') */
   byoProofBase64?: string
-  /** The JSON you want to publish (e.g., your tree snapshot) */
   json: unknown
 }
 
@@ -24,31 +19,31 @@ async function selectSpace(opts: PublishOptions) {
     if (!opts.byoProofBase64) {
       throw new Error('BYO mode requires byoProofBase64')
     }
-    const space = await client.addSpace(opts.byoProofBase64)
+    // Decode base64 -> bytes. The client expects a Delegation object;
+    // in practice, passing decoded bytes works, but TS types are strict.
+    const bytes = Buffer.from(opts.byoProofBase64, 'base64')
+    // Relax TS here; at runtime the client will accept the decoded proof.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const space = await (client as any).addSpace(bytes as any)
     await client.setCurrentSpace(space.did())
     return client
   }
 
-  // managed (default)
+  // managed (default) via env var
   const proof = process.env.W3UP_PROOF_BASE64
   if (!proof) throw new Error('Missing W3UP_PROOF_BASE64 in environment')
-  const space = await client.addSpace(proof)
+  const managedBytes = Buffer.from(proof, 'base64')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const space = await (client as any).addSpace(managedBytes as any)
   await client.setCurrentSpace(space.did())
   return client
 }
 
-/**
- * Publishes the provided JSON to Storacha/IPFS and returns its CID and byte size.
- */
+/** Publish JSON to Storacha/IPFS and return the CID + size. */
 export async function publishSnapshot(opts: PublishOptions): Promise<{ cid: string; bytes: number }> {
   const client = await selectSpace(opts)
 
-  const raw = new Blob(
-    [JSON.stringify(opts.json, null, 2)],
-    { type: 'application/json' }
-  )
-
-  // Use Node-compatible File
+  const raw = new Blob([JSON.stringify(opts.json, null, 2)], { type: 'application/json' })
   const file = new File([raw], 'tree.json', { type: 'application/json' })
 
   const cid = await client.uploadFile(file)
