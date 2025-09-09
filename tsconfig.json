@@ -13,20 +13,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-
+    "types": ["@types/node", "@types/react", "@types/react-dom"],
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@lib/*": ["src/lib/*"]
-    },
-
-    "types": []
+    "paths": { "@/*": ["src/*"] }
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    "src/types/**/*.d.ts"
+    "**/*.d.ts",
+    ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
