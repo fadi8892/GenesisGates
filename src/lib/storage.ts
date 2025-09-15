@@ -50,10 +50,10 @@ function resolveCreds(opts: UploadJSONSnapshotOpts = {}): ClientCreds {
   const mode = opts.mode ?? "managed";
 
   if (mode === "byo") {
-    const agentSecret = opts.agentSecret || "";
-    const spaceDid = opts.spaceDid || "";
-    const endpoint = opts.endpoint || undefined;
-    const agentDid = opts.agentDid || undefined;
+    const agentSecret = opts.agentSecret ?? "";
+    const spaceDid = opts.spaceDid ?? "";
+    const endpoint = opts.endpoint ?? undefined;
+    const agentDid = opts.agentDid ?? undefined;
 
     if (!agentSecret) throw new Error("BYO mode: missing agentSecret");
     if (!spaceDid) throw new Error("BYO mode: missing spaceDid");
@@ -61,11 +61,11 @@ function resolveCreds(opts: UploadJSONSnapshotOpts = {}): ClientCreds {
     return { agentSecret, spaceDid, endpoint, agentDid };
   }
 
-  // managed mode (default): pull from env, allow overrides
+  // managed mode (default): pull from env, allow overrides (use only ?? to avoid mixing with ||)
   const agentSecret = opts.managedAgentSecret ?? process.env.STORACHA_AGENT_SECRET ?? "";
   const spaceDid = opts.managedSpaceDid ?? process.env.STORACHA_SPACE_DID ?? "";
-  const endpoint = opts.managedEndpoint ?? process.env.STORACHA_ENDPOINT || undefined;
-  const agentDid = opts.managedAgentDid ?? process.env.STORACHA_AGENT_DID || undefined;
+  const endpoint = opts.managedEndpoint ?? process.env.STORACHA_ENDPOINT ?? undefined;
+  const agentDid = opts.managedAgentDid ?? process.env.STORACHA_AGENT_DID ?? undefined;
 
   if (!agentSecret) throw new Error("Managed mode: STORACHA_AGENT_SECRET missing");
   if (!spaceDid) throw new Error("Managed mode: STORACHA_SPACE_DID missing");
@@ -77,7 +77,7 @@ function resolveCreds(opts: UploadJSONSnapshotOpts = {}): ClientCreds {
 export function makeStorachaClient(creds: ClientCreds) {
   const { agentSecret, spaceDid, endpoint, agentDid } = creds;
 
-  // NOTE: Recent Storacha SDKs expect { agent: { secret, did? }, space, endpoint? }
+  // Latest Storacha SDK expects { agent: { secret, did? }, space, endpoint? }
   const client = (create as any)({
     agent: {
       ...(agentDid ? { did: agentDid } : null),
@@ -114,9 +114,9 @@ export async function putFile(
   if (file instanceof Blob) {
     payload = file;
   } else if (file instanceof Uint8Array) {
-    payload = new Blob([file], { type: opts.contentType || "application/octet-stream" });
+    payload = new Blob([file], { type: opts.contentType ?? "application/octet-stream" });
   } else if (file instanceof ArrayBuffer) {
-    payload = new Blob([new Uint8Array(file)], { type: opts.contentType || "application/octet-stream" });
+    payload = new Blob([new Uint8Array(file)], { type: opts.contentType ?? "application/octet-stream" });
   } else {
     payload = file as Blob; // File extends Blob
   }
@@ -140,9 +140,9 @@ export async function putFile(
 export async function putJSON<T = unknown>(data: T, opts: PutOptions = {}): Promise<string> {
   ensureServer();
   const blob = new Blob([JSON.stringify(data)], {
-    type: opts.contentType || "application/json",
+    type: opts.contentType ?? "application/json",
   });
-  const filename = opts.filename || "data.json";
+  const filename = opts.filename ?? "data.json";
   return putFile(blob, { filename, contentType: blob.type });
 }
 
@@ -201,7 +201,7 @@ export async function getBytes(cid: string): Promise<Uint8Array> {
   }
 
   const endpoint = process.env.STORACHA_ENDPOINT?.replace(/\/+$/, "");
-  const url = endpoint ? `${endpoint}/${encodeURIComponent(cid)}` : `https://w3s.link/ipfs/${cid}`;
+  const url = (endpoint ?? `https://w3s.link/ipfs`) + `/${encodeURIComponent(cid)}`;
   const r = await fetch(url);
   if (!r.ok) throw new Error(`Gateway fetch failed: ${r.status} ${r.statusText}`);
   return new Uint8Array(await r.arrayBuffer());
