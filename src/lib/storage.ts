@@ -1,13 +1,35 @@
 // src/lib/storage.ts
-// Server-only Storacha client factory + helpers.
+// Server-only Storacha client factory + helpers compatible with your snapshot route.
 
 import "server-only";
 import { create } from "@storacha/client";
 
-type MakeClientParams = {
+// ---------- Types ----------
+export type ClientCreds = {
   agentSecret: string;
   spaceDid: string;
   endpoint?: string;
+  /** Optional if your SDK version requires it; safe to leave undefined */
+  agentDid?: string;
+};
+
+export type UploadJSONSnapshotOpts = {
+  filename?: string;
+
+  // Choose how creds are supplied:
+  mode?: "byo" | "managed";
+
+  // BYO creds (when mode === 'byo')
+  agentSecret?: string;
+  spaceDid?: string;
+  endpoint?: string;
+  agentDid?: string;
+
+  // Managed overrides (optional; otherwise pulled from env)
+  managedAgentSecret?: string;
+  managedSpaceDid?: string;
+  managedEndpoint?: string;
+  managedAgentDid?: string;
 };
 
 type PutOptions = {
@@ -15,7 +37,7 @@ type PutOptions = {
   contentType?: string;
 };
 
-// Prevent accidental client-side import
+// ---------- Guards ----------
 function ensureServer() {
   // @ts-ignore
   if (typeof window !== "undefined") {
@@ -23,17 +45,42 @@ function ensureServer() {
   }
 }
 
-let _client: any | null = null;
+// ---------- Client creation ----------
+function resolveCreds(opts: UploadJSONSnapshotOpts = {}): ClientCreds {
+  const mode = opts.mode ?? "managed";
 
-export function makeStorachaClient({ agentSecret, spaceDid, endpoint }: MakeClientParams) {
-  if (!agentSecret) throw new Error("Missing STORACHA_AGENT_SECRET");
-  if (!spaceDid) throw new Error("Missing STORACHA_SPACE_DID");
+  if (mode === "byo") {
+    const agentSecret = opts.agentSecret || "";
+    const spaceDid = opts.spaceDid || "";
+    const endpoint = opts.endpoint || undefined;
+    const agentDid = opts.agentDid || undefined;
 
-  // ✅ FIX: move secret under agent; do NOT pass agentSecret at top level
+    if (!agentSecret) throw new Error("BYO mode: missing agentSecret");
+    if (!spaceDid) throw new Error("BYO mode: missing spaceDid");
+
+    return { agentSecret, spaceDid, endpoint, agentDid };
+  }
+
+  // managed mode (default): pull from env, allow overrides
+  const agentSecret = opts.managedAgentSecret ?? process.env.STORACHA_AGENT_SECRET ?? "";
+  const spaceDid = opts.managedSpaceDid ?? process.env.STORACHA_SPACE_DID ?? "";
+  const endpoint = opts.managedEndpoint ?? process.env.STORACHA_ENDPOINT || undefined;
+  const agentDid = opts.managedAgentDid ?? process.env.STORACHA_AGENT_DID || undefined;
+
+  if (!agentSecret) throw new Error("Managed mode: STORACHA_AGENT_SECRET missing");
+  if (!spaceDid) throw new Error("Managed mode: STORACHA_SPACE_DID missing");
+
+  return { agentSecret, spaceDid, endpoint, agentDid };
+}
+
+/** Create a Storacha client (tolerant to minor SDK shape differences). */
+export function makeStorachaClient(creds: ClientCreds) {
+  const { agentSecret, spaceDid, endpoint, agentDid } = creds;
+
+  // NOTE: Recent Storacha SDKs expect { agent: { secret, did? }, space, endpoint? }
   const client = (create as any)({
     agent: {
-      // include did if your SDK/version requires it:
-      // did: process.env.STORACHA_AGENT_DID,
+      ...(agentDid ? { did: agentDid } : null),
       secret: agentSecret,
     },
     space: spaceDid,
@@ -43,31 +90,25 @@ export function makeStorachaClient({ agentSecret, spaceDid, endpoint }: MakeClie
   return client;
 }
 
-export function getStorachaClient() {
-  ensureServer();
-  if (_client) return _client;
-  const agentSecret = process.env.STORACHA_AGENT_SECRET ?? "";
-  const spaceDid = process.env.STORACHA_SPACE_DID ?? "";
-  const endpoint = process.env.STORACHA_ENDPOINT || undefined;
-  _client = makeStorachaClient({ agentSecret, spaceDid, endpoint });
-  return _client;
-}
-
-// Call the first available method name (tolerates SDK naming differences)
+// ---------- Method shims (tolerate SDK variations) ----------
 async function callFirst<T = any>(obj: any, names: string[], ...args: any[]): Promise<T> {
   for (const n of names) {
     const fn = obj?.[n];
     if (typeof fn === "function") return await fn.apply(obj, args);
   }
-  throw new Error(`None of the methods [${names.join(", ")}] exist on Storacha client`);
+  const available = Object.keys(obj ?? {});
+  throw new Error(
+    `None of the methods [${names.join(", ")}] exist on Storacha client. Available: ${available.join(", ")}`
+  );
 }
 
+// ---------- Core helpers ----------
 export async function putFile(
   file: File | Blob | Uint8Array | ArrayBuffer,
   opts: PutOptions = {}
 ): Promise<string> {
   ensureServer();
-  const client = getStorachaClient();
+  const { filename } = opts;
 
   let payload: Blob;
   if (file instanceof Blob) {
@@ -77,19 +118,21 @@ export async function putFile(
   } else if (file instanceof ArrayBuffer) {
     payload = new Blob([new Uint8Array(file)], { type: opts.contentType || "application/octet-stream" });
   } else {
-    payload = file as Blob; // File extends Blob in browsers
+    payload = file as Blob; // File extends Blob
   }
+
+  // We’ll create a temporary client using managed creds by default.
+  const client = makeStorachaClient(resolveCreds({ mode: "managed" }));
 
   const res = await callFirst<any>(
     client,
     ["put", "upload", "store", "add", "uploadFile", "putFile"],
     payload,
-    { filename: opts.filename }
+    { filename }
   );
 
   if (typeof res === "string") return res;
-  const maybe =
-    (res && (res.cid || res.CID || res.root?.cid || res.root?.CID || res.value || res.id)) ?? null;
+  const maybe = res?.cid ?? res?.CID ?? res?.root?.cid ?? res?.root?.CID ?? res?.value ?? res?.id;
   if (!maybe) throw new Error("Storacha putFile: Could not determine CID from response");
   return String(maybe);
 }
@@ -103,9 +146,48 @@ export async function putJSON<T = unknown>(data: T, opts: PutOptions = {}): Prom
   return putFile(blob, { filename, contentType: blob.type });
 }
 
+// ---------- Compatibility helper for your route ----------
+/**
+ * Upload JSON and return { cid, bytes }.
+ * - Respects `mode: 'byo' | 'managed'`
+ * - Supports managed overrides (env-based by default)
+ * - Uses the latest Storacha client shape { agent: { secret, did? }, space, endpoint }
+ */
+export async function uploadJSONSnapshot(
+  json: unknown,
+  opts: UploadJSONSnapshotOpts = {}
+): Promise<{ cid: string; bytes: number }> {
+  ensureServer();
+  const creds = resolveCreds(opts);
+  const client = makeStorachaClient(creds);
+
+  const text = JSON.stringify(json);
+  const bytes = new TextEncoder().encode(text).length;
+  const blob = new Blob([text], { type: "application/json" });
+  const filename = opts.filename ?? `snapshot-${Date.now()}.json`;
+
+  const res = await callFirst<any>(
+    client,
+    ["put", "upload", "store", "add", "uploadFile", "putFile"],
+    blob,
+    { filename }
+  );
+
+  let cid: string;
+  if (typeof res === "string") cid = res;
+  else {
+    const maybe = res?.cid ?? res?.CID ?? res?.root?.cid ?? res?.root?.CID ?? res?.value ?? res?.id;
+    if (!maybe) throw new Error("Storacha uploadJSONSnapshot: Could not determine CID from response");
+    cid = String(maybe);
+  }
+
+  return { cid, bytes };
+}
+
+// ---------- Optional getters (handy for reads) ----------
 export async function getBytes(cid: string): Promise<Uint8Array> {
   ensureServer();
-  const client = getStorachaClient();
+  const client = makeStorachaClient(resolveCreds({ mode: "managed" }));
 
   try {
     const res = await callFirst<any>(client, ["get", "fetch", "retrieve", "cat"], cid);
@@ -130,10 +212,4 @@ export async function getJSON<T = unknown>(cid: string): Promise<T> {
   const bytes = await getBytes(cid);
   const text = new TextDecoder().decode(bytes);
   return JSON.parse(text) as T;
-}
-
-export async function getStatus(cid: string): Promise<any> {
-  ensureServer();
-  const client = getStorachaClient();
-  return callFirst<any>(client, ["status", "info", "head"], cid);
 }
