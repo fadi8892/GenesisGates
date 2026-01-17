@@ -1,93 +1,80 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
-import * as f3 from "@/lib/family-chart/src/index"; // We will place the library here
-import "@/lib/family-chart/src/styles/family-chart.css"; // Import styles
-import type { Datum } from "@/lib/family-chart/src/types/data";
+import React, { useState, useCallback } from "react";
+import { ReactFlowProvider } from "reactflow"; // Import the provider
+import GraphView from "./graph/GraphView";
+import PersonProfile from "./PersonProfile";
+import type { GraphData } from "./graph/types";
 
-export default function TreeClient({ initialData }: { initialData: any }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [store, setStore] = useState<any>(null);
-  const [chart, setChart] = useState<any>(null);
+interface TreeClientProps {
+  treeId: string;
+  initialData: GraphData;
+}
 
-  useEffect(() => {
-    if (!containerRef.current || !initialData) return;
+export default function TreeClient({ treeId, initialData }: TreeClientProps) {
+  // State to track which person is currently selected in the graph
+  // When selected, the sidebar will open
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    // 1. Transform Data to Family-Chart format if needed
-    // Family-Chart expects: { id, data: { gender, ... }, rels: { parents, spouses, children } }
-    const formattedData = initialData.nodes.map((n: any) => ({
-      id: n.id,
-      data: {
-        gender: n.data.gender || "M", // Required by library
-        "first name": n.data.label?.split(" ")[0] || "Unknown",
-        "last name": n.data.label?.split(" ").slice(1).join(" ") || "",
-        birthday: n.data.born_year || "",
-        avatar: n.data.avatar || "",
-        ...n.data
-      },
-      rels: {
-        parents: findParents(n.id, initialData.edges),
-        children: findChildren(n.id, initialData.edges),
-        spouses: findSpouses(n.id, initialData.edges)
-      }
-    }));
+  // --- Handlers ---
 
-    // 2. Initialize Chart
-    const f3Chart = f3.createChart(containerRef.current, formattedData)
-      .setTransitionTime(1000)
-      .setCardXSpacing(250)
-      .setCardYSpacing(150)
-      .setOrientationVertical(); // Or .setOrientationHorizontal()
+  /**
+   * Called when a node is clicked in the GraphView
+   */
+  const handleOpenSidebar = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
 
-    // 3. Configure Cards (HTML)
-    const f3Card = f3Chart.setCardHtml()
-      .setCardDisplay([
-        ["first name", "last name"],
-        ["birthday"]
-      ]);
+  /**
+   * Called when the user clicks 'Back' or closes the sidebar
+   */
+  const handleCloseSidebar = useCallback(() => {
+    setSelectedId(null);
+  }, []);
 
-    // 4. Initial Render
-    f3Chart.updateTree({ initial: true });
+  /**
+   * Handler for renaming a node (passed down to GraphView if editable)
+   */
+  const handleRename = useCallback((id: string, newName: string) => {
+    console.log("Rename requested:", id, newName);
+    // TODO: Implement optimistic update or Supabase mutation here
+  }, []);
 
-    // Save references
-    setChart(f3Chart);
-    setStore(f3Chart.store);
+  // --- Render ---
 
-  }, [initialData]);
-
-  // Helpers to map your Edge format to Family-Chart's 'rels' format
-  const findParents = (id: string, edges: any[]) => 
-    edges.filter(e => e.target === id).map(e => e.source);
-
-  const findChildren = (id: string, edges: any[]) => 
-    edges.filter(e => e.source === id).map(e => e.target);
-
-  const findSpouses = (id: string, edges: any[]) => {
-    // In strict graph terms, spouses share children. 
-    // This logic might need to be adjusted based on your specific edge types.
-    const children = findChildren(id, edges);
-    const spouses = new Set<string>();
-    children.forEach(childId => {
-      const parents = findParents(childId, edges);
-      parents.forEach(p => {
-        if (p !== id) spouses.add(p);
-      });
-    });
-    return Array.from(spouses);
-  };
-
+  // We calculate height to fit the viewport minus the parent padding (approx 32px)
   return (
-    <div 
-      id="FamilyChart" 
-      ref={containerRef} 
-      className="f3" 
-      style={{ 
-        width: '100vw', 
-        height: '100vh', 
-        backgroundColor: '#333', 
-        color: '#fff' 
-      }} 
-    />
+    <div className="w-full h-[calc(100vh-32px)] relative bg-gray-50 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+      
+      {/* FIX: Wrap GraphView in ReactFlowProvider.
+        This provides the context required for useReactFlow() hook inside GraphView.
+      */}
+      <ReactFlowProvider>
+        <GraphView 
+          data={initialData} 
+          onOpenSidebar={handleOpenSidebar}
+          mode="editor"
+          activeId={selectedId}
+          onRename={handleRename}
+        />
+      </ReactFlowProvider>
+
+      {/* Sidebar Overlay 
+        - Slides in when a node is selected
+        - Shows details for the selected person
+      */}
+      {selectedId && (
+        <div 
+          className="absolute top-0 right-0 w-full max-w-[400px] h-full bg-white shadow-2xl border-l border-gray-200 z-50 overflow-hidden transition-transform duration-300 ease-in-out"
+        >
+           <PersonProfile 
+             data={initialData} 
+             personId={selectedId} 
+             onBack={handleCloseSidebar}
+             onSelect={setSelectedId}
+           />
+        </div>
+      )}
+    </div>
   );
 }
