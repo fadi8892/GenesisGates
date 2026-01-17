@@ -1,0 +1,492 @@
+diff --git a/styles.css b/styles.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..18bbd2ebd184ece943bbf618c16a045ffb63ea19
+--- /dev/null
++++ b/styles.css
+@@ -0,0 +1,486 @@
++:root {
++  --bg: #0b1021;
++  --panel: #111831;
++  --panel-strong: #0c1226;
++  --muted: #9aa4c2;
++  --text: #e4e9fa;
++  --accent: #7c8cff;
++  --accent-strong: #4c6fff;
++  --positive: #4ade80;
++  --warning: #fbbf24;
++  --neutral: #60a5fa;
++  --border: rgba(255, 255, 255, 0.08);
++  --shadow: 0 10px 40px rgba(8, 12, 30, 0.5);
++  --radius: 18px;
++}
++
++* {
++  box-sizing: border-box;
++}
++
++body {
++  margin: 0;
++  font-family: "Inter", system-ui, -apple-system, sans-serif;
++  background: radial-gradient(circle at 25% 20%, rgba(124, 140, 255, 0.08), transparent 30%),
++    radial-gradient(circle at 80% 0%, rgba(76, 111, 255, 0.1), transparent 25%),
++    var(--bg);
++  color: var(--text);
++  min-height: 100vh;
++}
++
++.app-shell {
++  display: grid;
++  grid-template-columns: 380px 1fr;
++  min-height: 100vh;
++}
++
++.auth-panel {
++  padding: 48px;
++  border-right: 1px solid var(--border);
++  backdrop-filter: blur(12px);
++  background: linear-gradient(160deg, rgba(17, 24, 49, 0.9), rgba(11, 16, 33, 0.8));
++  display: flex;
++  flex-direction: column;
++  gap: 32px;
++  position: relative;
++  overflow: hidden;
++}
++
++.auth-panel::after {
++  content: "";
++  position: absolute;
++  inset: 24px;
++  border: 1px solid rgba(255, 255, 255, 0.04);
++  border-radius: calc(var(--radius) * 2);
++  pointer-events: none;
++}
++
++.brand {
++  display: flex;
++  align-items: center;
++  gap: 18px;
++}
++
++.brand h1 {
++  margin: 4px 0 6px;
++  font-size: 26px;
++}
++
++.brand .eyebrow {
++  margin: 0;
++}
++
++.brand .muted {
++  margin: 0;
++}
++
++.brand-mark {
++  width: 64px;
++  height: 64px;
++  border-radius: 18px;
++  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
++  display: grid;
++  place-items: center;
++  font-weight: 700;
++  color: white;
++  letter-spacing: 0.5px;
++  box-shadow: var(--shadow);
++}
++
++.auth-form {
++  display: flex;
++  flex-direction: column;
++  gap: 16px;
++}
++
++.auth-form label {
++  display: flex;
++  flex-direction: column;
++  gap: 6px;
++  font-weight: 600;
++  color: var(--text);
++}
++
++.auth-form input {
++  border: 1px solid var(--border);
++  background: rgba(255, 255, 255, 0.04);
++  border-radius: 12px;
++  padding: 12px;
++  color: var(--text);
++}
++
++.auth-form input:focus {
++  outline: 2px solid rgba(124, 140, 255, 0.5);
++  border-color: transparent;
++}
++
++.form-footer {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  font-size: 14px;
++  color: var(--muted);
++}
++
++.remember {
++  display: flex;
++  gap: 8px;
++  align-items: center;
++}
++
++.link {
++  color: var(--accent);
++  text-decoration: none;
++}
++
++.link:hover {
++  text-decoration: underline;
++}
++
++button.primary {
++  border: none;
++  border-radius: 12px;
++  padding: 12px 14px;
++  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
++  color: white;
++  font-weight: 700;
++  cursor: pointer;
++  box-shadow: var(--shadow);
++}
++
++button.primary:hover {
++  filter: brightness(1.05);
++}
++
++button.ghost {
++  border: 1px solid var(--border);
++  background: transparent;
++  color: var(--text);
++  padding: 10px 14px;
++  border-radius: 12px;
++  cursor: pointer;
++}
++
++.dashboard {
++  padding: 36px 40px 60px;
++  background: radial-gradient(circle at 30% 10%, rgba(124, 140, 255, 0.06), transparent 22%),
++    radial-gradient(circle at 80% 20%, rgba(76, 111, 255, 0.08), transparent 18%),
++    radial-gradient(circle at 60% 100%, rgba(76, 111, 255, 0.05), transparent 22%),
++    linear-gradient(180deg, rgba(17, 24, 49, 0.6), rgba(11, 16, 33, 0.9));
++}
++
++.topbar {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  margin-bottom: 24px;
++}
++
++.topbar h2 {
++  margin: 6px 0 0;
++}
++
++.actions {
++  display: flex;
++  align-items: center;
++  gap: 12px;
++}
++
++.divider {
++  width: 1px;
++  height: 32px;
++  background: var(--border);
++}
++
++.user-chip {
++  display: flex;
++  gap: 10px;
++  align-items: center;
++  padding: 8px 12px;
++  background: rgba(255, 255, 255, 0.04);
++  border-radius: 12px;
++  border: 1px solid var(--border);
++}
++
++.avatar {
++  width: 36px;
++  height: 36px;
++  border-radius: 50%;
++  display: grid;
++  place-items: center;
++  background: linear-gradient(135deg, rgba(76, 111, 255, 0.3), rgba(124, 140, 255, 0.6));
++  color: var(--text);
++  font-weight: 700;
++}
++
++.chip-name {
++  margin: 0;
++  font-weight: 700;
++}
++
++.chip-role {
++  margin: 0;
++  color: var(--muted);
++  font-size: 13px;
++}
++
++.grid {
++  display: grid;
++  gap: 18px;
++  margin-bottom: 24px;
++  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
++}
++
++.grid.two-column {
++  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
++}
++
++.grid.three-column {
++  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
++}
++
++.card {
++  background: rgba(255, 255, 255, 0.04);
++  border: 1px solid var(--border);
++  border-radius: var(--radius);
++  padding: 18px;
++  box-shadow: var(--shadow);
++}
++
++.card h3 {
++  margin: 8px 0;
++  font-size: 26px;
++}
++
++.card .muted {
++  margin: 0 0 6px;
++}
++
++.card-head {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  margin-bottom: 6px;
++}
++
++.card.compact h3 {
++  font-size: 20px;
++}
++
++.card.compact .card-head {
++  margin-bottom: 2px;
++}
++
++.card.highlight {
++  background: radial-gradient(circle at 20% 20%, rgba(124, 140, 255, 0.14), transparent 40%),
++    rgba(255, 255, 255, 0.05);
++}
++
++.sparkline {
++  width: 100%;
++  height: 80px;
++  margin-top: 12px;
++}
++
++.sparkline polyline {
++  fill: none;
++  stroke: url(#gradient);
++  stroke: var(--accent);
++  stroke-width: 6;
++  stroke-linecap: round;
++  filter: drop-shadow(0 8px 18px rgba(124, 140, 255, 0.3));
++}
++
++.progress {
++  background: rgba(255, 255, 255, 0.06);
++  border-radius: 10px;
++  height: 10px;
++  overflow: hidden;
++}
++
++.progress-bar {
++  height: 100%;
++  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
++  border-radius: inherit;
++}
++
++.meter {
++  width: 100%;
++  background: rgba(255, 255, 255, 0.06);
++  height: 12px;
++  border-radius: 10px;
++  overflow: hidden;
++}
++
++.meter span {
++  display: block;
++  height: 100%;
++  background: linear-gradient(90deg, rgba(249, 168, 37, 0.8), rgba(250, 204, 21, 0.4));
++}
++
++.pill {
++  display: inline-flex;
++  align-items: center;
++  gap: 6px;
++  padding: 6px 10px;
++  border-radius: 20px;
++  font-weight: 700;
++  font-size: 12px;
++  background: rgba(255, 255, 255, 0.06);
++  color: var(--text);
++  border: 1px solid var(--border);
++}
++
++.pill.positive {
++  color: #16a34a;
++  background: rgba(22, 163, 74, 0.14);
++  border-color: rgba(22, 163, 74, 0.4);
++}
++
++.pill.warning {
++  color: #d97706;
++  background: rgba(249, 168, 37, 0.14);
++  border-color: rgba(249, 168, 37, 0.4);
++}
++
++.pill.neutral {
++  color: #2563eb;
++  background: rgba(37, 99, 235, 0.12);
++  border-color: rgba(37, 99, 235, 0.3);
++}
++
++.pill.soft {
++  color: var(--text);
++}
++
++.list {
++  list-style: none;
++  margin: 0;
++  padding: 0;
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++}
++
++.list li {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  padding: 12px;
++  background: rgba(255, 255, 255, 0.03);
++  border-radius: 12px;
++  border: 1px solid var(--border);
++}
++
++.title {
++  margin: 0 0 2px;
++  font-weight: 700;
++}
++
++.tasks {
++  display: flex;
++  flex-direction: column;
++  gap: 12px;
++}
++
++.task {
++  display: flex;
++  justify-content: space-between;
++  align-items: center;
++  padding: 12px;
++  border-radius: 12px;
++  border: 1px solid var(--border);
++  background: rgba(255, 255, 255, 0.03);
++}
++
++.task .left {
++  display: flex;
++  gap: 10px;
++  align-items: center;
++}
++
++.task .badge {
++  width: 10px;
++  height: 10px;
++  border-radius: 50%;
++  background: var(--accent);
++}
++
++.task .muted {
++  margin: 0;
++}
++
++.task button {
++  background: transparent;
++  border: none;
++  color: var(--muted);
++  cursor: pointer;
++}
++
++.task-form {
++  margin-top: 10px;
++  display: grid;
++  grid-template-columns: 1fr auto;
++  gap: 10px;
++}
++
++.task-form input {
++  border: 1px solid var(--border);
++  background: rgba(255, 255, 255, 0.04);
++  border-radius: 12px;
++  padding: 12px;
++  color: var(--text);
++}
++
++.task-form input:focus {
++  outline: 2px solid rgba(124, 140, 255, 0.5);
++  border-color: transparent;
++}
++
++.eyebrow {
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  font-size: 12px;
++  color: var(--muted);
++}
++
++.muted {
++  color: var(--muted);
++}
++
++.small {
++  font-size: 12px;
++}
++
++@media (max-width: 1100px) {
++  .app-shell {
++    grid-template-columns: 1fr;
++  }
++
++  .auth-panel {
++    border-right: none;
++    border-bottom: 1px solid var(--border);
++  }
++}
++
++@media (max-width: 720px) {
++  body {
++    background: var(--bg);
++  }
++
++  .dashboard {
++    padding: 24px 16px 40px;
++  }
++
++  .topbar {
++    flex-direction: column;
++    align-items: flex-start;
++    gap: 12px;
++  }
++
++  .actions {
++    width: 100%;
++    justify-content: flex-start;
++    flex-wrap: wrap;
++  }
++}
