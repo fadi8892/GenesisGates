@@ -1,7 +1,7 @@
 export default function Footer() {
   return (
-    <footer className="py-12 text-center text-sm text-gray-500 bg-white border-t border-gray-200">
-      © {new Date().getFullYear()} Genesis Gates. Built with love for family historians.
+    <footer className="border-t border-white/10 bg-[#050505] py-12 text-center text-sm text-slate-500">
+      © {new Date().getFullYear()} Genesis Gates. Crafted for modern family historians.
     </footer>
   );
 }
