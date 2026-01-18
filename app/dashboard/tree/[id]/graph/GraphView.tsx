@@ -119,18 +119,11 @@ export default function GraphView({
   const lodLevel = useMemo(() => {
     const z = viewport.zoom;
 
-    // Circular/Fan denser -> dots sooner
-    if (layoutMode === "circular" || layoutMode === "fan") {
-      if (z < 0.5) return "tiny";
-      if (z < 1.2) return "low";
-      return "high";
-    }
-
-    // Vertical/Horizontal
-    if (z < 0.25) return "tiny";
-    if (z < 0.65) return "low";
+    // Galaxy (<20%), Scanner (20-70%), Detail (>70%)
+    if (z < 0.2) return "tiny";
+    if (z < 0.7) return "low";
     return "high";
-  }, [viewport.zoom, layoutMode]);
+  }, [viewport.zoom]);
 
   // --- Focus Mode (KEPT) ---
   const focusData = useFocusGraph(
@@ -285,6 +278,7 @@ export default function GraphView({
         size={dimensions}
         // fade lines out when tiny mode, but keep highlight otherwise
         highlightSet={lodLevel === "tiny" ? new Set() : highlightSet}
+        styleMode={mode === "editor" ? "orthogonal" : "bezier"}
       />
 
       <ReactFlow
