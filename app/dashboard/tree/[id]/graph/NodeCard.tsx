@@ -127,6 +127,11 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
   const dimClass = isDimmed ? "opacity-20 blur-[1px]" : "opacity-100";
   const highlightRing =
     isHighlighted && !selected ? "ring-2 ring-blue-200" : "";
+  const shortLabel = useMemo(() => {
+    if (!label) return "Unknown";
+    const [first] = label.trim().split(/\s+/);
+    return first || "Unknown";
+  }, [label]);
 
   // 1) TINY (DOT)
   if (lod === "tiny") {
@@ -163,7 +168,7 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
       >
         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: safeAccent }} />
         <span className="text-xs font-bold text-gray-700 truncate">
-          {label || "Unknown"}
+          {shortLabel}
         </span>
 
         <Handle type="target" position={Position.Top} className="!opacity-0" />

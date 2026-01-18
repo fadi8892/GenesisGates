@@ -16,17 +16,17 @@ export function useFocusGraph(fullData: GraphData, focusId: string | null) {
     };
 
     const parentEdges = fullData.edges.filter(isParentChildEdge);
-    const parentMap = new Map<string, string[]>();
+    const childMap = new Map<string, string[]>();
 
     parentEdges.forEach((edge) => {
-      const list = parentMap.get(edge.target) ?? [];
-      list.push(edge.source);
-      parentMap.set(edge.target, list);
+      const list = childMap.get(edge.source) ?? [];
+      list.push(edge.target);
+      childMap.set(edge.source, list);
     });
 
     const queue: Array<{ id: string; depth: number }> = [{ id: focusId, depth: 0 }];
     const visited = new Set<string>();
-    const maxDepth = 2;
+    const maxDepth = 3;
 
     while (queue.length) {
       const current = queue.shift();
@@ -35,10 +35,10 @@ export function useFocusGraph(fullData: GraphData, focusId: string | null) {
       relevantNodeIds.add(current.id);
 
       if (current.depth >= maxDepth) continue;
-      const parents = parentMap.get(current.id) ?? [];
-      parents.forEach((parentId) => {
-        relevantNodeIds.add(parentId);
-        queue.push({ id: parentId, depth: current.depth + 1 });
+      const children = childMap.get(current.id) ?? [];
+      children.forEach((childId) => {
+        relevantNodeIds.add(childId);
+        queue.push({ id: childId, depth: current.depth + 1 });
       });
     }
 

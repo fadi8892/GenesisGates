@@ -125,6 +125,18 @@ export default function GraphView({
     return "high";
   }, [viewport.zoom]);
 
+  const viewportBounds = useMemo(() => {
+    if (!dimensions.w || !dimensions.h || !Number.isFinite(viewport.zoom)) {
+      return null;
+    }
+    const invZoom = 1 / Math.max(viewport.zoom, 0.0001);
+    const minX = (-viewport.x) * invZoom;
+    const minY = (-viewport.y) * invZoom;
+    const maxX = (dimensions.w - viewport.x) * invZoom;
+    const maxY = (dimensions.h - viewport.y) * invZoom;
+    return { minX, minY, maxX, maxY };
+  }, [dimensions.h, dimensions.w, viewport.x, viewport.y, viewport.zoom]);
+
   // --- Focus Mode (KEPT) ---
   const focusData = useFocusGraph(
     data,
@@ -189,6 +201,9 @@ export default function GraphView({
       });
     }
 
+    const viewportMargin =
+      lodLevel === "tiny" ? 2200 : lodLevel === "low" ? 1200 : 800;
+
     const mergedNodes = filteredNodes
       .map((n: any) => {
         const layoutNode = layoutMap.get(n.id);
@@ -220,6 +235,17 @@ export default function GraphView({
           },
           zIndex: isHighlighted ? 10 : 0,
         };
+      })
+      .filter((n: any) => {
+        if (!viewportBounds) return true;
+        const nodeX = n.position?.x ?? 0;
+        const nodeY = n.position?.y ?? 0;
+        return (
+          nodeX >= viewportBounds.minX - viewportMargin &&
+          nodeX <= viewportBounds.maxX + viewportMargin &&
+          nodeY >= viewportBounds.minY - viewportMargin &&
+          nodeY <= viewportBounds.maxY + viewportMargin
+        );
       })
       .map(sanitizeNode);
 
