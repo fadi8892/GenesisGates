@@ -24,17 +24,20 @@ export default function Viewer({ mode, treeId }: { mode: "demo" | "share"; treeI
 
       if (!treeId) return;
 
-      const mem = await supabase.from("members").select("*").eq("tree_id", treeId);
-      const ed = await supabase.from("edges").select("*").eq("tree_id", treeId);
+      // UPDATED: Fetch from 'nodes' table instead of 'members'
+      const { data: dbNodes } = await supabase.from("nodes").select("*").eq("tree_id", treeId);
+      const { data: dbEdges } = await supabase.from("edges").select("*").eq("tree_id", treeId);
 
-      setNodes((mem.data || []).map((m: any) => ({
-        id: m.id,
-        position: { x: m.pos_x, y: m.pos_y },
-        data: { label: m.label },
+      setNodes((dbNodes || []).map((n: any) => ({
+        id: n.id,
+        // Map database fields to ReactFlow format
+        position: { x: n.position_x || 0, y: n.position_y || 0 },
+        // Use the JSONB data column
+        data: { label: n.data?.label || "Unknown", ...n.data },
         type: "default",
       })));
 
-      setEdges((ed.data || []).map((e: any) => ({
+      setEdges((dbEdges || []).map((e: any) => ({
         id: e.id,
         source: e.source,
         target: e.target,

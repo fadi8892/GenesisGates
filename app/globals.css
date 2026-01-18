@@ -28,7 +28,7 @@ body {
   background-color: var(--color-space);
   color: var(--color-ink-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
-  overflow: hidden;
+  /* overflow: hidden;  <-- REMOVED THIS LINE */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
