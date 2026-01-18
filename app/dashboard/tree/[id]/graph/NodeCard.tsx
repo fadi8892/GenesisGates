@@ -126,7 +126,7 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
   // Shared dim/highlight wrapper classes (restored)
   const dimClass = isDimmed ? "opacity-20 blur-[1px]" : "opacity-100";
   const highlightRing =
-    isHighlighted && !selected ? "ring-2 ring-blue-200/80" : "";
+    isHighlighted && !selected ? "ring-2 ring-blue-200/70" : "";
 
   // 1) TINY (DOT)
   if (lod === "tiny") {
@@ -134,15 +134,19 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
       <div className={`relative flex items-center justify-center ${dimClass}`}>
         <div
           className={`
-            w-3 h-3 rounded-full shadow-sm
+            w-3.5 h-3.5 rounded-full shadow-sm
             transition-transform duration-500
             ${selected ? "ring-2 ring-[#0071E3] scale-110" : "ring-1 ring-black/10"}
             ${highlightRing}
           `}
           style={{
             backgroundColor: safeAccent,
-            boxShadow: `0 0 10px ${safeAccent}55`,
+            boxShadow: `0 0 14px ${safeAccent}66`,
           }}
+        />
+        <div
+          className="absolute w-6 h-6 rounded-full opacity-60 blur-md"
+          style={{ background: `radial-gradient(circle, ${safeAccent}55, transparent 70%)` }}
         />
         <Handle type="target" position={Position.Top} className="!opacity-0" />
         <Handle type="source" position={Position.Bottom} className="!opacity-0" />
@@ -155,18 +159,18 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
     return (
       <div
         className={`
-          w-[200px] h-[44px] rounded-full
-          bg-white/80 shadow-md border border-white/60
-          flex items-center px-4 gap-2 backdrop-blur-xl
-          transition-all duration-300 hover:scale-[1.03] cursor-pointer
+          w-[210px] h-[46px] rounded-full
+          bg-white/70 shadow-lg border border-white/70
+          flex items-center px-4 gap-3 backdrop-blur-2xl
+          transition-all duration-300 hover:scale-[1.04] cursor-pointer
           ${dimClass}
           ${selected ? "ring-2 ring-[#0071E3]" : ""}
           ${highlightRing}
         `}
       >
         <div
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: safeAccent, boxShadow: `0 0 8px ${safeAccent}55` }}
+          className="w-3 h-3 rounded-full"
+          style={{ backgroundColor: safeAccent, boxShadow: `0 0 10px ${safeAccent}66` }}
         />
         <span className="text-xs font-semibold text-gray-700 truncate">
           {label || "Unknown"}
@@ -182,7 +186,7 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
   return (
     <div
       className={`
-        relative group w-[280px] h-[180px]
+        relative group w-[300px] h-[200px]
         transition-all duration-300 ease-out
         transition-opacity duration-500 ease-in-out
         ${dimClass}
@@ -228,11 +232,11 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
       <div
         onDoubleClick={handleDoubleClick}
         className={`
-          w-full h-full rounded-[24px] overflow-hidden backdrop-blur-xl transition-all duration-300
+          w-full h-full rounded-[32px] overflow-hidden backdrop-blur-2xl transition-all duration-300
           ${
             selected
-              ? "bg-white/95 shadow-2xl ring-2 ring-[#0071E3]"
-              : "bg-white/80 shadow-md hover:shadow-xl ring-1 ring-black/5"
+              ? "bg-white/92 shadow-2xl ring-2 ring-[#0071E3]"
+              : "bg-white/72 shadow-xl hover:shadow-2xl ring-1 ring-black/5"
           }
           ${highlightRing}
         `}
@@ -240,20 +244,22 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
         <div
           className="absolute inset-0"
           style={{
-            background: `radial-gradient(circle at top, ${safeAccent}22, transparent 60%)`,
+            background: `radial-gradient(circle at 20% 0%, ${safeAccent}2f, transparent 60%)`,
           }}
         />
-        <div className="h-1.5 w-full opacity-80 relative" style={{ background: safeAccent }} />
+        <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full blur-3xl opacity-60" style={{ background: safeAccent }} />
+        <div className="absolute -bottom-14 -left-14 w-32 h-32 rounded-full blur-3xl opacity-40" style={{ background: `${safeAccent}55` }} />
+        <div className="h-1 w-full opacity-80 relative" style={{ background: safeAccent }} />
 
         <div className="relative p-5 flex flex-col gap-4 h-full">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               <div
-                className="absolute inset-0 rounded-[18px] blur-xl opacity-30"
+                className="absolute inset-0 rounded-[22px] blur-xl opacity-40"
                 style={{ background: safeAccent }}
               />
               <div
-                className="relative w-14 h-14 rounded-[18px] flex items-center justify-center text-xl font-semibold text-white shadow-lg select-none"
+                className="relative w-16 h-16 rounded-[22px] flex items-center justify-center text-xl font-semibold text-white shadow-xl select-none"
                 style={{ background: `linear-gradient(135deg, ${safeAccent}, #0F172A)` }}
               >
                 {(label?.charAt(0) || "?").toUpperCase()}
@@ -268,10 +274,10 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
                   onChange={(e) => setEditLabel(e.target.value)}
                   onBlur={commit}
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-transparent border-b-2 border-blue-500 text-[18px] font-semibold text-[#1D1D1F] outline-none"
+                  className="w-full bg-transparent border-b-2 border-blue-500 text-[19px] font-semibold text-[#1D1D1F] outline-none"
                 />
               ) : (
-                <h3 className="font-semibold text-[18px] text-[#1D1D1F] truncate select-none">
+                <h3 className="font-semibold text-[19px] text-[#1D1D1F] truncate select-none">
                   {label || "Unknown"}
                 </h3>
               )}
@@ -285,14 +291,14 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
           </div>
 
           <div className="relative mt-auto flex flex-wrap gap-2">
-            <span className="px-2.5 py-1 rounded-full bg-white/80 border border-black/5 text-[11px] font-semibold text-[#1D1D1F]/80">
+            <span className="px-3 py-1 rounded-full bg-white/80 border border-white/70 text-[11px] font-semibold text-[#1D1D1F]/80">
               {born_year || "Birth Unknown"}
             </span>
-            <span className="px-2.5 py-1 rounded-full bg-white/80 border border-black/5 text-[11px] font-semibold text-[#1D1D1F]/80">
+            <span className="px-3 py-1 rounded-full bg-white/80 border border-white/70 text-[11px] font-semibold text-[#1D1D1F]/80">
               {died_year || "Living"}
             </span>
             {city && (
-              <span className="px-2.5 py-1 rounded-full bg-white/80 border border-black/5 text-[11px] font-semibold text-[#1D1D1F]/80 flex items-center gap-1">
+              <span className="px-3 py-1 rounded-full bg-white/80 border border-white/70 text-[11px] font-semibold text-[#1D1D1F]/80 flex items-center gap-1">
                 <MapPin size={10} /> {city}
               </span>
             )}

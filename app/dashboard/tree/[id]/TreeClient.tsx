@@ -378,6 +378,7 @@ export default function TreeClient({ treeId, initialData }: TreeClientProps) {
           <PersonProfile
             data={graphData}
             personId={selectedId}
+            treeId={treeId}
             onBack={handleCloseSidebar}
             onSelect={setSelectedId}
           />

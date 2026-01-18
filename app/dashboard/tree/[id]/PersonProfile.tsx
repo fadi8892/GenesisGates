@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { 
   ArrowLeft, Calendar, MapPin, Share2, 
   Printer, Edit3, User, Heart, 
-  Baby, ScrollText, Users, Network, ExternalLink, RefreshCw
+  Baby, ScrollText, Users, Network, ExternalLink, RefreshCw, ArrowUpRight
 } from "lucide-react";
 import type { GraphData } from "./graph/types";
+import Link from "next/link";
 
 // --- HELPERS ---
 const getPerson = (data: GraphData, id: string) => data.nodes.find(n => n.id === id);
@@ -26,11 +27,20 @@ const resolveName = (n: any) => {
     return n.data?.label || n.data?.displayName || n.data?.name || "Unnamed";
 };
 
-export default function PersonProfile({ data, personId, onBack, onSelect }: { 
+export default function PersonProfile({
+  data,
+  personId,
+  treeId,
+  onBack,
+  onSelect,
+  showFullProfileLink = true,
+}: { 
   data: GraphData; 
   personId: string; 
+  treeId: string;
   onBack: () => void;
   onSelect: (id: string) => void;
+  showFullProfileLink?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState('LifeStory');
   const person = getPerson(data, personId);
@@ -45,15 +55,38 @@ export default function PersonProfile({ data, personId, onBack, onSelect }: {
     { year: d.died_year || 'Present', title: d.died_year ? "Death" : "Living", desc: d.deathPlace || "", icon: Heart },
   ];
 
+  const overviewItems = useMemo(() => [
+    { label: "Role", value: d.role || "Member" },
+    { label: "Born", value: d.born_year || "Unknown" },
+    { label: "Died", value: d.died_year || "Living" },
+    { label: "Birthplace", value: d.birthPlace || d.city || "Unknown" },
+    { label: "Deathplace", value: d.deathPlace || "Unknown" },
+    { label: "Relatives", value: `${relatives.parents.length} parents · ${relatives.children.length} children` },
+  ], [d.birthPlace, d.born_year, d.city, d.deathPlace, d.died_year, d.role, relatives.children.length, relatives.parents.length]);
+
   return (
     <div className="h-full w-full bg-gray-50 text-gray-900 overflow-y-auto custom-scrollbar flex flex-col">
       
       {/* --- HERO HEADER --- */}
-      <div className="relative h-64 bg-gradient-to-b from-white to-gray-100 border-b border-gray-200 flex-shrink-0">
+      <div className="relative h-64 bg-gradient-to-b from-white via-white to-gray-100 border-b border-gray-200 flex-shrink-0">
          <div className="absolute top-4 left-4 z-10">
              <button onClick={onBack} className="flex items-center gap-2 px-3 py-1.5 bg-white/80 hover:bg-white border border-gray-200 shadow-sm rounded-full text-xs font-bold text-gray-700 transition-colors backdrop-blur">
                 <ArrowLeft size={14} /> Back
              </button>
+         </div>
+
+         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            {showFullProfileLink && (
+              <Link
+                href={`/dashboard/tree/${treeId}/person/${personId}`}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white/90 hover:bg-white border border-gray-200 shadow-sm rounded-full text-xs font-bold text-gray-700 transition-colors backdrop-blur"
+              >
+                Full Profile <ArrowUpRight size={14} />
+              </Link>
+            )}
+            <button className="flex items-center gap-2 px-3 py-1.5 bg-black text-white border border-black shadow-sm rounded-full text-xs font-bold transition-colors">
+              <Edit3 size={14} /> Edit Info
+            </button>
          </div>
          
          <div className="w-full h-full flex flex-col items-center justify-end pb-6 px-6 text-center">
@@ -94,6 +127,21 @@ export default function PersonProfile({ data, personId, onBack, onSelect }: {
 
       {/* --- CONTENT --- */}
       <div className="p-6">
+         <div className="mb-6 grid grid-cols-2 gap-3">
+            {overviewItems.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm"
+              >
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                  {item.label}
+                </div>
+                <div className="text-sm font-semibold text-gray-900 mt-1">
+                  {item.value}
+                </div>
+              </div>
+            ))}
+         </div>
          
          {/* TAB: LIFESTORY */}
          {activeTab === 'LifeStory' && (
