@@ -18,9 +18,18 @@ type Props = {
   cam: Cam;
   size: Size;
   highlightSet?: Set<string> | null;
+  lineStyle?: {
+    baseWidth: number;
+    highlightWidth: number;
+    minWidth: number;
+    color: string;
+    highlightColor: string;
+    dimColor: string;
+    glow: boolean;
+  };
 };
 
-export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
+export function CanvasEdges({ geometry, cam, size, highlightSet, lineStyle }: Props) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2;
 
@@ -95,6 +104,24 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
       }
     };
 
+    const baseWidth = lineStyle?.baseWidth ?? 2.2;
+    const highlightWidth = lineStyle?.highlightWidth ?? 3.2;
+    const minWidth = lineStyle?.minWidth ?? 1.6;
+    const dimColor = lineStyle?.dimColor ?? "#E5E5EA";
+    const baseColor = lineStyle?.color ?? "#A1A1AA";
+    const highlightColor = lineStyle?.highlightColor ?? "#70707A";
+
+    const scaledWidth = (width: number) =>
+      Math.max(minWidth, width * Math.max(0.35, cam.z));
+
+    if (lineStyle?.glow) {
+      ctx.shadowColor = "rgba(59, 130, 246, 0.18)";
+      ctx.shadowBlur = 10;
+    } else {
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = "transparent";
+    }
+
     // Pass 1: draw DIMMED (everything not highlighted) OR all lines if no highlighting
     ctx.beginPath();
 
@@ -102,8 +129,8 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
       for (const line of safeGeometry) {
         if (!highlightSet!.has(line.id)) addPath(line);
       }
-      ctx.strokeStyle = "#E5E5EA";
-      ctx.lineWidth = 1 * cam.z;
+      ctx.strokeStyle = dimColor;
+      ctx.lineWidth = scaledWidth(baseWidth * 0.7);
       ctx.stroke();
 
       // Pass 2: draw HIGHLIGHTED
@@ -111,16 +138,16 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
       for (const line of safeGeometry) {
         if (highlightSet!.has(line.id)) addPath(line);
       }
-      ctx.strokeStyle = "#A1A1AA";
-      ctx.lineWidth = 2 * cam.z;
+      ctx.strokeStyle = highlightColor;
+      ctx.lineWidth = scaledWidth(highlightWidth);
       ctx.stroke();
     } else {
       for (const line of safeGeometry) addPath(line);
-      ctx.strokeStyle = "#A1A1AA";
-      ctx.lineWidth = 2 * cam.z;
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = scaledWidth(baseWidth);
       ctx.stroke();
     }
-  }, [geometry, cam.x, cam.y, cam.z, size.w, size.h, dpr, highlightSet]);
+  }, [geometry, cam.x, cam.y, cam.z, size.w, size.h, dpr, highlightSet, lineStyle]);
 
   return <canvas ref={ref} className="absolute inset-0 pointer-events-none" />;
 }
