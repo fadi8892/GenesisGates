@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Circle,
   Fan,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { NodeCard } from "./NodeCard";
@@ -57,18 +58,24 @@ export default function GraphView({
   onAddChild?: (id: string) => void;
   onAddPartner?: (id: string) => void;
 }) {
-  const { fitView, zoomIn, zoomOut, setCenter } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, setCenter, setViewport: setFlowViewport } = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  const [viewState, setViewState] = useState({ x: 0, y: 0, zoom: 1 });
   const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("vertical");
   const [selectedId, setSelectedId] = useState<string | null>(activeId || null);
   const [showSearch, setShowSearch] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [geometry, setGeometry] = useState<any[]>([]);
+  const [lineWeight, setLineWeight] = useState(2.6);
+  const [lineContrast, setLineContrast] = useState(0.7);
+  const [lineGlow, setLineGlow] = useState(true);
+  const [cardRadius, setCardRadius] = useState(22);
+  const [cardGlow, setCardGlow] = useState(true);
 
   // --- SYNC activeId from parent ---
   useEffect(() => {
@@ -117,7 +124,7 @@ export default function GraphView({
 
   // --- LOD CALCULATION (KEPT + SAFE) ---
   const lodLevel = useMemo(() => {
-    const z = viewport.zoom;
+    const z = viewState.zoom;
 
     // Circular/Fan denser -> dots sooner
     if (layoutMode === "circular" || layoutMode === "fan") {
@@ -130,7 +137,7 @@ export default function GraphView({
     if (z < 0.25) return "tiny";
     if (z < 0.65) return "low";
     return "high";
-  }, [viewport.zoom, layoutMode]);
+  }, [viewState.zoom, layoutMode]);
 
   // --- Focus Mode (KEPT) ---
   const focusData = useFocusGraph(
@@ -144,10 +151,10 @@ export default function GraphView({
   // --- Semantic Zoom (RESTORED - View Mode Only) ---
   const maxVisibleGeneration = useMemo(() => {
     if (mode === "editor") return 999;
-    if (viewport.zoom > 0.8) return 999;
-    if (viewport.zoom > 0.4) return 3;
+    if (viewState.zoom > 0.8) return 999;
+    if (viewState.zoom > 0.4) return 3;
     return 0;
-  }, [viewport.zoom, mode]);
+  }, [viewState.zoom, mode]);
 
   // --- LAYOUT INPUT (FULL GRAPH for stable positioning) ---
   const workerInput = useMemo(() => {
@@ -224,6 +231,11 @@ export default function GraphView({
             onAddParent,
             onAddChild,
             onAddPartner,
+            onOpenSidebar,
+            ui: {
+              cardRadius,
+              cardGlow,
+            },
           },
           zIndex: isHighlighted ? 10 : 0,
         };
@@ -249,10 +261,40 @@ export default function GraphView({
     onAddParent,
     onAddChild,
     onAddPartner,
+    onOpenSidebar,
+    cardRadius,
+    cardGlow,
     setNodes,
     fitView,
     isReady,
   ]);
+
+  const lineStyle = useMemo(() => {
+    const clampedContrast = Math.min(1, Math.max(0, lineContrast));
+    const baseAlpha = 0.35 + clampedContrast * 0.45;
+    const highlightAlpha = 0.6 + clampedContrast * 0.35;
+    const dimAlpha = 0.18 + clampedContrast * 0.25;
+
+    return {
+      baseWidth: lineWeight,
+      highlightWidth: lineWeight + 1.4,
+      minWidth: 1.6,
+      color: `rgba(71, 85, 105, ${baseAlpha.toFixed(2)})`,
+      highlightColor: `rgba(59, 130, 246, ${highlightAlpha.toFixed(2)})`,
+      dimColor: `rgba(148, 163, 184, ${dimAlpha.toFixed(2)})`,
+      glow: lineGlow,
+    };
+  }, [lineContrast, lineGlow, lineWeight]);
+
+  const handleReset = useCallback(() => {
+    setSelectedId(null);
+    setShowSearch(false);
+    if ((layoutResult?.nodes || []).length > 0) {
+      requestAnimationFrame(() => fitView({ duration: 900, padding: 0.12 }));
+    } else {
+      setFlowViewport({ x: 0, y: 0, zoom: 1 }, { duration: 600 });
+    }
+  }, [fitView, layoutResult?.nodes, setFlowViewport]);
 
   const onNodeClick = useCallback(
     (_: any, node: Node) => {
@@ -281,10 +323,11 @@ export default function GraphView({
     >
       <CanvasEdges
         geometry={geometry}
-        cam={{ x: viewport.x, y: viewport.y, z: viewport.zoom }}
+        cam={{ x: viewState.x, y: viewState.y, z: viewState.zoom }}
         size={dimensions}
         // fade lines out when tiny mode, but keep highlight otherwise
         highlightSet={lodLevel === "tiny" ? new Set() : highlightSet}
+        lineStyle={lineStyle}
       />
 
       <ReactFlow
@@ -293,7 +336,7 @@ export default function GraphView({
         nodeTypes={nodeTypes}
         onMove={(_, vp) => {
           if (Number.isFinite(vp.x) && Number.isFinite(vp.y) && Number.isFinite(vp.zoom)) {
-            setViewport(vp);
+            setViewState(vp);
           }
         }}
         onNodesChange={onNodesChange}
@@ -320,16 +363,73 @@ export default function GraphView({
             />
             <div className="w-px h-4 bg-black/10 mx-1" />
             <ControlButton
-              onClick={() => {
-                setSelectedId(null);
-                fitView({ duration: 1000, padding: 0.12 });
-              }}
+              onClick={handleReset}
               icon={<RotateCcw size={16} />}
               label="RESET"
             />
             <div className="w-px h-4 bg-black/10 mx-1" />
             <ControlButton onClick={() => zoomOut()} icon={<Minus size={18} />} />
             <ControlButton onClick={() => zoomIn()} icon={<Plus size={18} />} />
+          </div>
+        </Panel>
+
+        <Panel position="top-left" className="mt-4 ml-4">
+          <div className="glass-panel rounded-2xl p-2 shadow-lg w-[220px]">
+            <button
+              onClick={() => setShowSettings((prev) => !prev)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold uppercase tracking-widest text-[#1D1D1F] hover:bg-black/5 transition"
+            >
+              Display
+              <SlidersHorizontal size={14} />
+            </button>
+
+            <AnimatePresence>
+              {showSettings && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-3 pb-2 pt-3 flex flex-col gap-3">
+                    <SettingsSlider
+                      label="Line weight"
+                      value={lineWeight}
+                      min={1.6}
+                      max={4.5}
+                      step={0.1}
+                      onChange={setLineWeight}
+                    />
+                    <SettingsSlider
+                      label="Line contrast"
+                      value={lineContrast}
+                      min={0.2}
+                      max={1}
+                      step={0.05}
+                      onChange={setLineContrast}
+                    />
+                    <SettingsToggle
+                      label="Line glow"
+                      checked={lineGlow}
+                      onChange={setLineGlow}
+                    />
+                    <SettingsSlider
+                      label="Card roundness"
+                      value={cardRadius}
+                      min={16}
+                      max={32}
+                      step={1}
+                      onChange={setCardRadius}
+                    />
+                    <SettingsToggle
+                      label="Card glow"
+                      checked={cardGlow}
+                      onChange={setCardGlow}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </Panel>
 
@@ -444,6 +544,75 @@ function LayoutButton({ onClick, icon, label, active }: any) {
       }`}
     >
       {icon} {label}
+    </button>
+  );
+}
+
+function SettingsSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-2 text-xs text-[#1D1D1F] font-semibold">
+      <div className="flex items-center justify-between">
+        <span className="uppercase tracking-widest text-[10px] text-[#86868B]">
+          {label}
+        </span>
+        <span className="text-[11px] text-[#1D1D1F]">{value.toFixed(1)}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="accent-blue-500"
+      />
+    </label>
+  );
+}
+
+function SettingsToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="flex items-center justify-between rounded-xl border border-black/5 bg-white/70 px-3 py-2 text-xs font-semibold text-[#1D1D1F] hover:bg-white/90 transition"
+    >
+      <span className="uppercase tracking-widest text-[10px] text-[#86868B]">
+        {label}
+      </span>
+      <span
+        className={`inline-flex h-5 w-9 items-center rounded-full transition ${
+          checked ? "bg-blue-500" : "bg-gray-300"
+        }`}
+      >
+        <span
+          className={`h-4 w-4 rounded-full bg-white shadow transition ${
+            checked ? "translate-x-4" : "translate-x-1"
+          }`}
+        />
+      </span>
     </button>
   );
 }
