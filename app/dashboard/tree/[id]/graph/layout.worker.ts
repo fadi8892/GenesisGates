@@ -16,7 +16,7 @@ const CONFIG = {
   // Tidy/Radial tuning
   TIDY_X_GAP: 350,
   TIDY_Y_GAP: 180,
-  RADIAL_RADIUS_STEP: 320,
+  RADIAL_RADIUS_STEP: 380,
 } as const;
 
 type RenderLine = {
@@ -75,6 +75,19 @@ self.onmessage = (e: MessageEvent) => {
 // 1) ORTHOGONAL ENGINE (your feature-preserving version)
 // =========================================================
 function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) {
+  const layoutConfig = {
+    ...CONFIG,
+    GENERATION_GAP: isHorizontal
+      ? Math.max(CONFIG.GENERATION_GAP, CONFIG.NODE_WIDTH + 80)
+      : CONFIG.GENERATION_GAP,
+    SIBLING_GAP: isHorizontal
+      ? Math.max(CONFIG.SIBLING_GAP, 60)
+      : CONFIG.SIBLING_GAP,
+    COUSIN_GAP: isHorizontal
+      ? Math.max(CONFIG.COUSIN_GAP, CONFIG.NODE_HEIGHT + 80)
+      : CONFIG.COUSIN_GAP,
+  };
+
   const nodeMap: Record<string, NodeLayout> = {};
   const parentMap: Record<string, string[]> = {};
   const childrenMap: Record<string, string[]> = {};
@@ -138,7 +151,8 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
     const myFamilies = families.filter((f) => f.parents.includes(nodeId));
 
     const parentsBlockWidth =
-      CONFIG.NODE_WIDTH + node.spouses.length * (CONFIG.NODE_WIDTH + CONFIG.SPOUSE_GAP);
+      layoutConfig.NODE_WIDTH +
+      node.spouses.length * (layoutConfig.NODE_WIDTH + layoutConfig.SPOUSE_GAP);
 
     if (myFamilies.length === 0) {
       node.width = parentsBlockWidth;
@@ -150,7 +164,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
     let childrenTotalWidth = 0;
     allKids.forEach((kidId, i) => {
       childrenTotalWidth += measure(kidId, visited);
-      if (i < allKids.length - 1) childrenTotalWidth += CONFIG.SIBLING_GAP;
+      if (i < allKids.length - 1) childrenTotalWidth += layoutConfig.SIBLING_GAP;
     });
 
     node.width = Math.max(parentsBlockWidth, childrenTotalWidth);
@@ -167,19 +181,21 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
     const myFamilies = families.filter((f) => f.parents.includes(nodeId));
 
     const parentsBlockWidth =
-      CONFIG.NODE_WIDTH + node.spouses.length * (CONFIG.NODE_WIDTH + CONFIG.SPOUSE_GAP);
+      layoutConfig.NODE_WIDTH +
+      node.spouses.length * (layoutConfig.NODE_WIDTH + layoutConfig.SPOUSE_GAP);
 
     const parentsStartX = x + (node.width - parentsBlockWidth) / 2;
 
     node.x = parentsStartX;
-    node.y = depth * CONFIG.GENERATION_GAP;
+    node.y = depth * layoutConfig.GENERATION_GAP;
     node.generation = depth;
 
     node.spouses.forEach((spouseId, idx) => {
       const spouse = nodeMap[spouseId];
       if (!spouse) return;
 
-      spouse.x = parentsStartX + (idx + 1) * (CONFIG.NODE_WIDTH + CONFIG.SPOUSE_GAP);
+      spouse.x =
+        parentsStartX + (idx + 1) * (layoutConfig.NODE_WIDTH + layoutConfig.SPOUSE_GAP);
       spouse.y = node.y;
       spouse.generation = depth;
 
@@ -191,13 +207,13 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
     let currentChildX = x;
     const totalKidsWidth =
       allKids.reduce((acc, k) => acc + (nodeMap[k]?.width || 0), 0) +
-      Math.max(0, allKids.length - 1) * CONFIG.SIBLING_GAP;
+      Math.max(0, allKids.length - 1) * layoutConfig.SIBLING_GAP;
 
     if (totalKidsWidth < node.width) currentChildX += (node.width - totalKidsWidth) / 2;
 
     for (const kidId of allKids) {
       place(kidId, currentChildX, depth + 1, visited);
-      currentChildX += (nodeMap[kidId]?.width || 0) + CONFIG.SIBLING_GAP;
+      currentChildX += (nodeMap[kidId]?.width || 0) + layoutConfig.SIBLING_GAP;
     }
   };
 
@@ -206,7 +222,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
   let globalX = 0;
   for (const r of roots) {
     place(r.id, globalX, 0);
-    globalX += (nodeMap[r.id]?.width || 0) + CONFIG.COUSIN_GAP;
+    globalX += (nodeMap[r.id]?.width || 0) + layoutConfig.COUSIN_GAP;
   }
 
   const geometry: RenderLine[] = [];
@@ -216,10 +232,10 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
       const p1 = nodeMap[fam.parents[0]];
       const p2 = nodeMap[fam.parents[1]];
       if (p1 && p2) {
-        const midY = p1.y + CONFIG.NODE_HEIGHT / 2;
+        const midY = p1.y + layoutConfig.NODE_HEIGHT / 2;
         geometry.push({
           id: `part-${p1.id}-${p2.id}`,
-          x1: p1.x + CONFIG.NODE_WIDTH,
+          x1: p1.x + layoutConfig.NODE_WIDTH,
           y1: midY,
           x2: p2.x,
           y2: midY,
@@ -237,14 +253,14 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
       let originY = 0;
 
       if (p2) {
-        originX = (p1.x + CONFIG.NODE_WIDTH + p2.x) / 2;
-        originY = p1.y + CONFIG.NODE_HEIGHT / 2;
+        originX = (p1.x + layoutConfig.NODE_WIDTH + p2.x) / 2;
+        originY = p1.y + layoutConfig.NODE_HEIGHT / 2;
       } else {
-        originX = p1.x + CONFIG.NODE_WIDTH / 2;
-        originY = p1.y + CONFIG.NODE_HEIGHT;
+        originX = p1.x + layoutConfig.NODE_WIDTH / 2;
+        originY = p1.y + layoutConfig.NODE_HEIGHT;
       }
 
-      const stemEndY = originY + CONFIG.STEM_LENGTH;
+      const stemEndY = originY + layoutConfig.STEM_LENGTH;
 
       geometry.push({
         id: `stem-${fam.parents.join("-")}`,
@@ -258,7 +274,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
       const childCenters = fam.children
         .map((cid) => nodeMap[cid])
         .filter(Boolean)
-        .map((ch) => ch.x + CONFIG.NODE_WIDTH / 2);
+        .map((ch) => ch.x + layoutConfig.NODE_WIDTH / 2);
 
       if (childCenters.length === 0) continue;
 
@@ -280,7 +296,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
         const child = nodeMap[cid];
         if (!child) continue;
 
-        const childCenterX = child.x + CONFIG.NODE_WIDTH / 2;
+        const childCenterX = child.x + layoutConfig.NODE_WIDTH / 2;
 
         geometry.push({
           id: `drop-${fam.parents.join("-")}-${cid}`,
@@ -424,7 +440,8 @@ function runRadialAncestors(nodes: any[], edges: any[], rootId: string | null, i
   calcWeight(id0);
 
   const visited = new Set<string>();
-  const totalAngle = isFan ? Math.PI : 2 * Math.PI;
+  const totalAngle = isFan ? Math.PI * 1.4 : 2 * Math.PI;
+  const radialStep = isFan ? CONFIG.RADIAL_RADIUS_STEP + 60 : CONFIG.RADIAL_RADIUS_STEP;
 
   const place = (id: string, depth: number, aStart: number, aEnd: number) => {
     if (visited.has(id)) return;
@@ -432,7 +449,7 @@ function runRadialAncestors(nodes: any[], edges: any[], rootId: string | null, i
 
     const node = nodeMap[id];
     const angle = (aStart + aEnd) / 2;
-    const radius = depth * CONFIG.RADIAL_RADIUS_STEP;
+    const radius = depth * radialStep;
 
     // Fan: rotate so it opens upward
     const ang = isFan ? angle - Math.PI / 2 : angle;
