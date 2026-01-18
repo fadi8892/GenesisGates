@@ -126,7 +126,7 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
   // Shared dim/highlight wrapper classes (restored)
   const dimClass = isDimmed ? "opacity-20 blur-[1px]" : "opacity-100";
   const highlightRing =
-    isHighlighted && !selected ? "ring-2 ring-blue-200" : "";
+    isHighlighted && !selected ? "ring-2 ring-blue-200/80" : "";
 
   // 1) TINY (DOT)
   if (lod === "tiny") {
@@ -139,7 +139,10 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
             ${selected ? "ring-2 ring-[#0071E3] scale-110" : "ring-1 ring-black/10"}
             ${highlightRing}
           `}
-          style={{ backgroundColor: safeAccent }}
+          style={{
+            backgroundColor: safeAccent,
+            boxShadow: `0 0 10px ${safeAccent}55`,
+          }}
         />
         <Handle type="target" position={Position.Top} className="!opacity-0" />
         <Handle type="source" position={Position.Bottom} className="!opacity-0" />
@@ -152,17 +155,20 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
     return (
       <div
         className={`
-          w-[180px] h-[40px] rounded-full
-          bg-white/90 shadow-sm border border-black/5
-          flex items-center px-4 gap-2 backdrop-blur-md
-          transition-all duration-300 hover:scale-105 cursor-pointer
+          w-[200px] h-[44px] rounded-full
+          bg-white/80 shadow-md border border-white/60
+          flex items-center px-4 gap-2 backdrop-blur-xl
+          transition-all duration-300 hover:scale-[1.03] cursor-pointer
           ${dimClass}
           ${selected ? "ring-2 ring-[#0071E3]" : ""}
           ${highlightRing}
         `}
       >
-        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: safeAccent }} />
-        <span className="text-xs font-bold text-gray-700 truncate">
+        <div
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ backgroundColor: safeAccent, boxShadow: `0 0 8px ${safeAccent}55` }}
+        />
+        <span className="text-xs font-semibold text-gray-700 truncate">
           {label || "Unknown"}
         </span>
 
@@ -176,7 +182,7 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
   return (
     <div
       className={`
-        relative group w-[260px] h-[160px]
+        relative group w-[280px] h-[180px]
         transition-all duration-300 ease-out
         transition-opacity duration-500 ease-in-out
         ${dimClass}
@@ -222,53 +228,73 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
       <div
         onDoubleClick={handleDoubleClick}
         className={`
-          w-full h-full rounded-[20px] overflow-hidden backdrop-blur-xl transition-all duration-300
+          w-full h-full rounded-[24px] overflow-hidden backdrop-blur-xl transition-all duration-300
           ${
             selected
-              ? "bg-white/95 shadow-xl ring-2 ring-[#0071E3]"
-              : "bg-white/80 shadow-sm hover:shadow-lg ring-1 ring-black/5"
+              ? "bg-white/95 shadow-2xl ring-2 ring-[#0071E3]"
+              : "bg-white/80 shadow-md hover:shadow-xl ring-1 ring-black/5"
           }
           ${highlightRing}
         `}
       >
-        <div className="h-1.5 w-full opacity-80" style={{ background: safeAccent }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `radial-gradient(circle at top, ${safeAccent}22, transparent 60%)`,
+          }}
+        />
+        <div className="h-1.5 w-full opacity-80 relative" style={{ background: safeAccent }} />
 
-        <div className="p-5 flex gap-4 items-center h-full">
-          <div className="relative shrink-0 self-start mt-2">
-            <div
-              className="w-14 h-14 rounded-[14px] flex items-center justify-center text-xl font-semibold text-white shadow-sm select-none"
-              style={{ background: `linear-gradient(135deg, ${safeAccent}, #111)` }}
-            >
-              {(label?.charAt(0) || "?").toUpperCase()}
+        <div className="relative p-5 flex flex-col gap-4 h-full">
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              <div
+                className="absolute inset-0 rounded-[18px] blur-xl opacity-30"
+                style={{ background: safeAccent }}
+              />
+              <div
+                className="relative w-14 h-14 rounded-[18px] flex items-center justify-center text-xl font-semibold text-white shadow-lg select-none"
+                style={{ background: `linear-gradient(135deg, ${safeAccent}, #0F172A)` }}
+              >
+                {(label?.charAt(0) || "?").toUpperCase()}
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1 flex flex-col gap-1">
+              {isEditing ? (
+                <input
+                  ref={inputRef}
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onBlur={commit}
+                  onKeyDown={handleKeyDown}
+                  className="w-full bg-transparent border-b-2 border-blue-500 text-[18px] font-semibold text-[#1D1D1F] outline-none"
+                />
+              ) : (
+                <h3 className="font-semibold text-[18px] text-[#1D1D1F] truncate select-none">
+                  {label || "Unknown"}
+                </h3>
+              )}
+
+              <div className="flex items-center gap-2 text-[12px] text-[#86868B] font-medium select-none">
+                <span>{born_year || "????"}</span>
+                <span className="w-1 h-1 rounded-full bg-[#D2D2D7]" />
+                <span>{died_year || "Pres."}</span>
+              </div>
             </div>
           </div>
 
-          <div className="min-w-0 flex-1 flex flex-col gap-1 self-start mt-2">
-            {isEditing ? (
-              <input
-                ref={inputRef}
-                value={editLabel}
-                onChange={(e) => setEditLabel(e.target.value)}
-                onBlur={commit}
-                onKeyDown={handleKeyDown}
-                className="w-full bg-transparent border-b-2 border-blue-500 text-[17px] font-semibold text-[#1D1D1F] outline-none"
-              />
-            ) : (
-              <h3 className="font-semibold text-[17px] text-[#1D1D1F] truncate select-none">
-                {label || "Unknown"}
-              </h3>
-            )}
-
-            <div className="flex items-center gap-2 text-[13px] text-[#86868B] font-medium select-none">
-              <span>{born_year || "????"}</span>
-              <span className="w-1 h-1 rounded-full bg-[#D2D2D7]" />
-              <span>{died_year || "Pres."}</span>
-            </div>
-
+          <div className="relative mt-auto flex flex-wrap gap-2">
+            <span className="px-2.5 py-1 rounded-full bg-white/80 border border-black/5 text-[11px] font-semibold text-[#1D1D1F]/80">
+              {born_year || "Birth Unknown"}
+            </span>
+            <span className="px-2.5 py-1 rounded-full bg-white/80 border border-black/5 text-[11px] font-semibold text-[#1D1D1F]/80">
+              {died_year || "Living"}
+            </span>
             {city && (
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-[#86868B]/80 uppercase tracking-wide mt-2 select-none">
+              <span className="px-2.5 py-1 rounded-full bg-white/80 border border-black/5 text-[11px] font-semibold text-[#1D1D1F]/80 flex items-center gap-1">
                 <MapPin size={10} /> {city}
-              </div>
+              </span>
             )}
           </div>
         </div>
