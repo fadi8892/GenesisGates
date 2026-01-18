@@ -3,7 +3,7 @@ import { ArrowRight, TreeDeciduous } from "lucide-react";
 
 export default function Hero() {
   return (
-    <section className="relative bg-[#0b1021] text-white overflow-hidden">
+    <section className="relative bg-[#0b1021] text-white overflow-hidden pt-20">
       {/* Background Effect */}
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900 via-[#0b1021] to-[#0b1021]"></div>
       
@@ -25,15 +25,15 @@ export default function Hero() {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          {/* Primary CTA */}
-          <Link href="/dashboard" className="w-full sm:w-auto">
+          {/* Primary CTA - Updated to point to /login */}
+          <Link href="/login" className="w-full sm:w-auto">
             <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-              Get Started for Free
+              Get Started
               <ArrowRight className="w-4 h-4" />
             </button>
           </Link>
 
-          {/* Secondary CTA (The "Free Thing") */}
+          {/* Secondary CTA */}
           <Link href="/view/demo" className="w-full sm:w-auto">
             <button className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-full font-semibold transition-all backdrop-blur-sm">
               View Instant Demo

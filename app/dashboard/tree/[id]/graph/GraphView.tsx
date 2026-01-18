@@ -8,21 +8,22 @@ import ReactFlow, {
   useReactFlow,
   Panel,
   Node,
+  ReactFlowInstance,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { AnimatePresence, motion } from "framer-motion";
 import { 
-  Search, RotateCcw, Plus, Minus, ArrowDown, ArrowRight, Circle, Fan,
+  Search, RotateCcw, Plus, Minus, ArrowDown, ArrowRight, Circle, Fan, Settings2
 } from "lucide-react";
 
 import { NodeCard } from "./NodeCard";
 import { CanvasEdges } from "./CanvasEdges"; 
 import { useLayout } from "./useLayout"; 
 import { LayoutMode } from "./layout";
+import ContextMenu from "./ContextMenu";
 
 const nodeTypes = { person: NodeCard };
 
-// --- SAFETY: NaN Sanitizer ---
 const sanitizeNode = (node: any) => ({
   ...node,
   position: {
@@ -36,25 +37,18 @@ export default function GraphView({
   onOpenSidebar, 
   mode,
   activeId,
-  // Callbacks
-  onRename,
-  onAddParent,
-  onAddChild,
-  onAddPartner
+  onRename
 }: { 
   data: any, 
   onOpenSidebar: (id: string) => void, 
   mode: "view" | "editor",
   activeId?: string | null,
   onRename?: (id: string, name: string) => void,
-  onAddParent?: (id: string) => void,
-  onAddChild?: (id: string) => void,
-  onAddPartner?: (id: string) => void
 }) {
-  const { fitView, zoomIn, zoomOut, setCenter } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, setCenter, project } = useReactFlow();
   
+  // --- STATE ---
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]); 
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
   const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -62,14 +56,33 @@ export default function GraphView({
   const [selectedId, setSelectedId] = useState<string | null>(activeId || null);
   const [showSearch, setShowSearch] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  
-  // New state for geometry lines (since we don't want to store them in the node objects)
   const [geometry, setGeometry] = useState<any[]>([]);
+  const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
 
-  useEffect(() => {
-    if (activeId !== undefined) setSelectedId(activeId);
-  }, [activeId]);
+  // --- HOVER LOGIC ---
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
+  const highlightSet = useMemo(() => {
+    if (!hoveredNode) return null;
+    const ids = new Set<string>();
+    ids.add(hoveredNode);
+    // Trace ancestors
+    const queue = [hoveredNode];
+    while(queue.length > 0) {
+      const curr = queue.pop();
+      if(!curr) continue;
+      data.edges.forEach((e: any) => {
+        if(e.target === curr) {
+          ids.add(e.source);
+          ids.add(e.id);
+          queue.push(e.source);
+        }
+      });
+    }
+    return ids;
+  }, [hoveredNode, data.edges]);
+
+  // --- RESIZE OBSERVER ---
   useEffect(() => {
     if (!wrapperRef.current) return;
     const obs = new ResizeObserver((entries) => {
@@ -80,43 +93,36 @@ export default function GraphView({
     return () => obs.disconnect();
   }, []);
 
-  // 1. Prepare "Rich" Data (Contains Functions for UI)
-  const richNodes = useMemo(() => data.nodes.map((n: any) => ({
-      id: n.id, 
-      type: "person", 
-      data: { 
-          ...n.data, 
-          id: n.id,
-          onRename,
-          onAddParent,
-          onAddChild,
-          onAddPartner
-      }, 
-      position: { x: 0, y: 0 } 
-  })), [data.nodes, onRename, onAddParent, onAddChild, onAddPartner]);
+  // --- LAYOUT ENGINE ---
+  const richNodes = useMemo(() => data.nodes.map((n: any) => {
+      const isHighlighted = highlightSet ? highlightSet.has(n.id) : true;
+      const isDimmed = highlightSet ? !highlightSet.has(n.id) : false;
 
-  // 2. Prepare "Clean" Data (For Worker - NO Functions)
-  const workerInput = useMemo(() => {
-    return richNodes.map((n: any) => {
-        // Strip functions from data to avoid DataCloneError
-        const cleanData = { ...n.data };
-        Object.keys(cleanData).forEach(key => {
-            if (typeof cleanData[key] === 'function') delete cleanData[key];
-        });
-        return { ...n, data: cleanData };
-    });
-  }, [richNodes]);
+      return {
+        id: n.id, 
+        type: "person", 
+        data: { 
+            ...n.data, 
+            id: n.id,
+            onRename,
+            isDimmed,
+            isHighlighted,
+        }, 
+        position: { x: 0, y: 0 },
+        zIndex: isHighlighted ? 10 : 0
+      };
+  }), [data.nodes, onRename, highlightSet]);
 
-  // 3. Async Layout (Uses Clean Data)
-  const layoutResult = useLayout(workerInput, data.edges, layoutMode);
+  const cleanNodes = useMemo(() => richNodes.map((n: any) => {
+      const { onRename, isDimmed, isHighlighted, ...clean } = n.data;
+      return { ...n, data: clean };
+  }), [richNodes]);
+  
+  const layoutResult = useLayout(cleanNodes, data.edges, layoutMode);
 
-  // 4. Merge Results & Update State
   useEffect(() => {
     if (layoutResult.nodes.length > 0) {
-        // Create a map of calculated positions
         const posMap = new Map(layoutResult.nodes.map((n: any) => [n.id, n.position]));
-
-        // Merge positions back into the RICH nodes (so we keep the callbacks)
         const mergedNodes = richNodes.map((n: any) => ({
             ...n,
             position: posMap.get(n.id) || n.position
@@ -126,22 +132,37 @@ export default function GraphView({
         setGeometry(layoutResult.geometry || []);
         
         if (!isReady) {
-            setTimeout(() => {
-                fitView({ duration: 1200, padding: 0.2 });
-            }, 100);
+            setTimeout(() => fitView({ duration: 1200, padding: 0.2 }), 100);
             setIsReady(true);
         }
     }
   }, [layoutResult, richNodes, setNodes, fitView, isReady]);
 
-  // 5. Layout Map for Canvas
-  const layoutMap = useMemo(() => {
-    const byId: Record<string, { x: number; y: number }> = {};
-    nodes.forEach((n) => { byId[n.id] = { x: n.position.x, y: n.position.y }; });
-    return { byId };
-  }, [nodes]);
+  // --- INTERACTION HANDLERS ---
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      
+      // Calculate position relative to the pane
+      const pane = wrapperRef.current?.getBoundingClientRect();
+      if(pane) {
+          setMenu({
+            id: node.id,
+            top: event.clientY - pane.top,
+            left: event.clientX - pane.left,
+          });
+      }
+    },
+    []
+  );
+
+  const onPaneClick = useCallback(() => {
+      setMenu(null);
+      setSelectedId(null);
+  }, []);
 
   const onNodeClick = useCallback((_: any, node: Node) => {
+      setMenu(null);
       setSelectedId(node.id);
       onOpenSidebar(node.id);
       if (Number.isFinite(node.position.x) && Number.isFinite(node.position.y)) {
@@ -153,30 +174,51 @@ export default function GraphView({
     <div ref={wrapperRef} className="w-full h-full bg-[#F5F5F7] relative overflow-hidden font-sans">
       
       <CanvasEdges 
-        geometry={geometry} // Use geometry from worker
+        geometry={geometry} 
         cam={{ x: viewport.x, y: viewport.y, z: viewport.zoom }}
         size={dimensions}
+        highlightSet={highlightSet}
       />
 
       <ReactFlow
         nodes={nodes}
-        edges={[]} 
+        edges={[]} // We use CanvasEdges for performance, so pass empty array here
         nodeTypes={nodeTypes}
         onMove={(_, vp) => {
-            if (Number.isFinite(vp.x) && Number.isFinite(vp.y) && Number.isFinite(vp.zoom)) {
-                setViewport(vp);
-            }
+            if (Number.isFinite(vp.x)) setViewport(vp);
         }}
+        onNodeMouseEnter={(_, node) => setHoveredNode(node.id)}
+        onNodeMouseLeave={() => setHoveredNode(null)}
         onNodesChange={onNodesChange}
         onNodeClick={onNodeClick}
-        onPaneClick={() => setSelectedId(null)}
-        minZoom={0.1}
+        onNodeContextMenu={onNodeContextMenu}
+        onPaneClick={onPaneClick}
+        minZoom={0.05} // Allow zooming out further for 1000+ nodes
         maxZoom={3}
+        
+        // --- PERFORMANCE OPTIMIZATION ---
+        onlyRenderVisibleElements={true} // <--- THE KEY TO 1000+ NODES
         nodesDraggable={false} 
+        nodesConnectable={false}
+        elementsSelectable={true}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#000" gap={40} size={1} style={{ opacity: 0.05 }} />
         
+        {/* RIGHT CLICK MENU */}
+        {menu && (
+            <ContextMenu
+                id={menu.id}
+                top={menu.top}
+                left={menu.left}
+                right={0}
+                bottom={0}
+                onClose={() => setMenu(null)}
+                onEdit={onOpenSidebar}
+                onAddRelative={(id) => console.log("Add relative to", id)}
+            />
+        )}
+
         <Panel position="bottom-center" className="mb-8">
             <div className="glass-panel rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-all hover:scale-105">
                  <ControlButton onClick={() => setShowSearch(!showSearch)} icon={<Search size={18} />} />
@@ -185,16 +227,6 @@ export default function GraphView({
                  <div className="w-px h-4 bg-black/10 mx-1" />
                  <ControlButton onClick={() => zoomOut()} icon={<Minus size={18} />} />
                  <ControlButton onClick={() => zoomIn()} icon={<Plus size={18} />} />
-            </div>
-        </Panel>
-
-        <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">Views</div>
-                <LayoutButton active={layoutMode==='vertical'} onClick={() => setLayoutMode('vertical')} icon={<ArrowDown size={16} />} label="Descendancy" />
-                <LayoutButton active={layoutMode==='horizontal'} onClick={() => setLayoutMode('horizontal')} icon={<ArrowRight size={16} />} label="Landscape" />
-                <LayoutButton active={layoutMode==='circular'} onClick={() => setLayoutMode('circular')} icon={<Circle size={16} />} label="Circular" />
-                <LayoutButton active={layoutMode==='fan'} onClick={() => setLayoutMode('fan')} icon={<Fan size={16} />} label="Fan Chart" />
             </div>
         </Panel>
 
@@ -238,14 +270,6 @@ function ControlButton({ onClick, icon, label }: any) {
         <button onClick={onClick} className="p-3 rounded-full hover:bg-black/5 text-[#1D1D1F] transition-colors flex items-center gap-2 group active:scale-90">
             {icon}
             {label && <span className="text-[11px] font-bold tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">{label}</span>}
-        </button>
-    );
-}
-
-function LayoutButton({ onClick, icon, label, active }: any) {
-    return (
-        <button onClick={onClick} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-300 w-full text-left ${active ? 'bg-white shadow-md text-[#0071E3]' : 'text-[#86868B] hover:bg-black/5 hover:text-[#1D1D1F]'}`}>
-            {icon} {label}
         </button>
     );
 }

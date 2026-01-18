@@ -17,7 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       {/* Use dark text by default to complement the light surface */}
-      <body className="min-h-screen bg-surface text-gray-900 antialiased">
+      <body 
+        className="min-h-screen bg-surface text-gray-900 antialiased"
+        suppressHydrationWarning={true}
+      >
         {children}
       </body>
     </html>
