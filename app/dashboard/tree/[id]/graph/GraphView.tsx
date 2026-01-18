@@ -277,8 +277,12 @@ export default function GraphView({
   return (
     <div
       ref={wrapperRef}
-      className="w-full h-full bg-[#F5F5F7] relative overflow-hidden font-sans"
+      className="w-full h-full relative overflow-hidden font-sans"
     >
+      <div className="absolute inset-0 bg-gradient-to-br from-[#F8FAFF] via-[#F5F7FF] to-[#EEF1FF]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.95),_rgba(255,255,255,0))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(17,24,39,0.12),_transparent_55%)]" />
+
       <CanvasEdges
         geometry={geometry}
         cam={{ x: viewport.x, y: viewport.y, z: viewport.zoom }}
@@ -309,14 +313,29 @@ export default function GraphView({
         elementsSelectable={true}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#000" gap={40} size={1} style={{ opacity: 0.05 }} />
+        <Background color="#0F172A" gap={32} size={1.5} style={{ opacity: 0.06 }} />
+
+        <Panel position="top-left" className="mt-4 ml-4">
+          <div className="glass-panel rounded-2xl px-4 py-3 shadow-xl min-w-[220px]">
+            <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#86868B]">
+              Genesis Atlas
+            </div>
+            <div className="text-[15px] font-semibold text-[#1D1D1F] mt-1">
+              Family Map
+            </div>
+            <div className="text-[11px] text-[#86868B] mt-1">
+              Scroll to zoom · Drag to pan
+            </div>
+          </div>
+        </Panel>
 
         {/* Bottom dock */}
         <Panel position="bottom-center" className="mb-8">
-          <div className="glass-panel rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-all hover:scale-105">
+          <div className="glass-panel rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-all hover:scale-[1.03]">
             <ControlButton
               onClick={() => setShowSearch(!showSearch)}
               icon={<Search size={18} />}
+              label="SEARCH"
             />
             <div className="w-px h-4 bg-black/10 mx-1" />
             <ControlButton
@@ -336,7 +355,7 @@ export default function GraphView({
         {/* Layout menu (View only) - RESTORED full options */}
         {mode === "view" && (
           <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
+            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[180px]">
               <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
                 Layout
               </div>
@@ -421,7 +440,7 @@ function ControlButton({ onClick, icon, label }: any) {
   return (
     <button
       onClick={onClick}
-      className="p-3 rounded-full hover:bg-black/5 text-[#1D1D1F] transition-colors flex items-center gap-2 group active:scale-90"
+      className="px-4 py-2 rounded-full hover:bg-white/70 text-[#1D1D1F] transition-all flex items-center gap-2 group active:scale-95 border border-transparent hover:border-white/60"
     >
       {icon}
       {label && (
@@ -439,8 +458,8 @@ function LayoutButton({ onClick, icon, label, active }: any) {
       onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-300 w-full text-left ${
         active
-          ? "bg-white shadow-md text-[#0071E3]"
-          : "text-[#86868B] hover:bg-black/5 hover:text-[#1D1D1F]"
+          ? "bg-white shadow-md text-[#0071E3] ring-1 ring-blue-100"
+          : "text-[#86868B] hover:bg-white/70 hover:text-[#1D1D1F]"
       }`}
     >
       {icon} {label}

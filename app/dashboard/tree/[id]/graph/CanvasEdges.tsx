@@ -52,7 +52,7 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
     ctx.scale(dpr, dpr);
 
     // Background
-    ctx.fillStyle = "#F5F5F7";
+    ctx.fillStyle = "#F3F5FA";
     ctx.fillRect(0, 0, width, height);
 
     ctx.lineCap = "round";
@@ -102,8 +102,8 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
       for (const line of safeGeometry) {
         if (!highlightSet!.has(line.id)) addPath(line);
       }
-      ctx.strokeStyle = "#E5E5EA";
-      ctx.lineWidth = 1 * cam.z;
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+      ctx.lineWidth = Math.max(0.75, 1 * cam.z);
       ctx.stroke();
 
       // Pass 2: draw HIGHLIGHTED
@@ -111,13 +111,16 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
       for (const line of safeGeometry) {
         if (highlightSet!.has(line.id)) addPath(line);
       }
-      ctx.strokeStyle = "#A1A1AA";
-      ctx.lineWidth = 2 * cam.z;
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.85)";
+      ctx.lineWidth = Math.max(1.5, 2.2 * cam.z);
+      ctx.shadowColor = "rgba(59, 130, 246, 0.35)";
+      ctx.shadowBlur = 8;
       ctx.stroke();
+      ctx.shadowBlur = 0;
     } else {
       for (const line of safeGeometry) addPath(line);
-      ctx.strokeStyle = "#A1A1AA";
-      ctx.lineWidth = 2 * cam.z;
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.6)";
+      ctx.lineWidth = Math.max(1, 2 * cam.z);
       ctx.stroke();
     }
   }, [geometry, cam.x, cam.y, cam.z, size.w, size.h, dpr, highlightSet]);
