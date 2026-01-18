@@ -119,18 +119,23 @@ export default function GraphView({
   const lodLevel = useMemo(() => {
     const z = viewport.zoom;
 
-    // Circular/Fan denser -> dots sooner
-    if (layoutMode === "circular" || layoutMode === "fan") {
-      if (z < 0.5) return "tiny";
-      if (z < 1.2) return "low";
-      return "high";
-    }
-
-    // Vertical/Horizontal
-    if (z < 0.25) return "tiny";
-    if (z < 0.65) return "low";
+    // Galaxy (<20%), Scanner (20-70%), Detail (>70%)
+    if (z < 0.2) return "tiny";
+    if (z < 0.7) return "low";
     return "high";
-  }, [viewport.zoom, layoutMode]);
+  }, [viewport.zoom]);
+
+  const viewportBounds = useMemo(() => {
+    if (!dimensions.w || !dimensions.h || !Number.isFinite(viewport.zoom)) {
+      return null;
+    }
+    const invZoom = 1 / Math.max(viewport.zoom, 0.0001);
+    const minX = (-viewport.x) * invZoom;
+    const minY = (-viewport.y) * invZoom;
+    const maxX = (dimensions.w - viewport.x) * invZoom;
+    const maxY = (dimensions.h - viewport.y) * invZoom;
+    return { minX, minY, maxX, maxY };
+  }, [dimensions.h, dimensions.w, viewport.x, viewport.y, viewport.zoom]);
 
   // --- Focus Mode (KEPT) ---
   const focusData = useFocusGraph(
@@ -196,6 +201,9 @@ export default function GraphView({
       });
     }
 
+    const viewportMargin =
+      lodLevel === "tiny" ? 2200 : lodLevel === "low" ? 1200 : 800;
+
     const mergedNodes = filteredNodes
       .map((n: any) => {
         const layoutNode = layoutMap.get(n.id);
@@ -227,6 +235,17 @@ export default function GraphView({
           },
           zIndex: isHighlighted ? 10 : 0,
         };
+      })
+      .filter((n: any) => {
+        if (!viewportBounds) return true;
+        const nodeX = n.position?.x ?? 0;
+        const nodeY = n.position?.y ?? 0;
+        return (
+          nodeX >= viewportBounds.minX - viewportMargin &&
+          nodeX <= viewportBounds.maxX + viewportMargin &&
+          nodeY >= viewportBounds.minY - viewportMargin &&
+          nodeY <= viewportBounds.maxY + viewportMargin
+        );
       })
       .map(sanitizeNode);
 
@@ -285,6 +304,7 @@ export default function GraphView({
         size={dimensions}
         // fade lines out when tiny mode, but keep highlight otherwise
         highlightSet={lodLevel === "tiny" ? new Set() : highlightSet}
+        styleMode={mode === "editor" ? "orthogonal" : "bezier"}
       />
 
       <ReactFlow

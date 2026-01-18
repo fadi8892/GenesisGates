@@ -10,7 +10,7 @@ type Line = {
   y1: number;
   x2: number;
   y2: number;
-  type?: "bezier" | "step" | "line";
+  type?: string;
 };
 
 type Props = {
@@ -18,9 +18,16 @@ type Props = {
   cam: Cam;
   size: Size;
   highlightSet?: Set<string> | null;
+  styleMode?: "bezier" | "orthogonal" | "line";
 };
 
-export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
+export function CanvasEdges({
+  geometry,
+  cam,
+  size,
+  highlightSet,
+  styleMode = "bezier",
+}: Props) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2;
 
@@ -82,10 +89,21 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
 
       ctx.moveTo(x1, y1);
 
-      if (line.type === "bezier") {
+      const preferredType =
+        line.type === "partnership"
+          ? "line"
+          : styleMode === "orthogonal"
+            ? "step"
+            : styleMode === "line"
+              ? "line"
+              : line.type === "step" || line.type === "line"
+                ? line.type
+                : "bezier";
+
+      if (preferredType === "bezier") {
         const midX = (x1 + x2) / 2;
         ctx.bezierCurveTo(midX, y1, midX, y2, x2, y2);
-      } else if (line.type === "step") {
+      } else if (preferredType === "step") {
         const midY = (y1 + y2) / 2;
         ctx.lineTo(x1, midY);
         ctx.lineTo(x2, midY);
