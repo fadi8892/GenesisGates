@@ -49,6 +49,39 @@ type MemberData = {
   lng?: number | null;
   tags?: string[];
   accent?: string;
+  profile?: MemberProfile;
+};
+
+type MemberProfile = {
+  preferredName?: string | null;
+  middleName?: string | null;
+  suffix?: string | null;
+  gender?: "male" | "female" | "nonbinary" | "other" | "unknown" | null;
+  pronouns?: string | null;
+  isLiving?: boolean | null;
+  birthDate?: string | null;
+  birthPlace?: string | null;
+  deathDate?: string | null;
+  deathPlace?: string | null;
+  causeOfDeath?: string | null;
+  burialPlace?: string | null;
+  residence?: string | null;
+  nationality?: string | null;
+  ethnicity?: string | null;
+  religion?: string | null;
+  languages?: string | null;
+  occupation?: string | null;
+  employer?: string | null;
+  education?: string | null;
+  militaryService?: string | null;
+  relationshipStatus?: string | null;
+  spouseName?: string | null;
+  childrenCount?: number | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  socialHandle?: string | null;
+  notes?: string | null;
 };
 
 // Register custom nodes
@@ -133,21 +166,28 @@ function WorkspaceInner() {
       supabase.from("edges").select("*").eq("tree_id", tid)
     ]);
 
-    const loadedNodes: Node<MemberData>[] = (mem.data || []).map((m: any) => ({
-      id: m.id,
-      position: { x: m.pos_x ?? 0, y: m.pos_y ?? 0 },
-      type: "person",
-      data: {
-        label: m.label ?? "Person",
-        bio: m.bio,
-        born_year: m.born_year,
-        died_year: m.died_year,
-        lat: m.lat,
-        lng: m.lng,
-        tags: m.tags ?? [],
-        accent: m.style?.accent || autoAccent(m.id),
-      },
-    }));
+    const loadedNodes: Node<MemberData>[] = (mem.data || []).map((m: any) => {
+      const style = m.style && typeof m.style === "object" ? m.style : {};
+      const rawProfile = style?.profile && typeof style.profile === "object" ? style.profile : {};
+      const profile = { ...rawProfile, isLiving: rawProfile.isLiving ?? (m.died_year ? false : null) };
+
+      return ({
+        id: m.id,
+        position: { x: m.pos_x ?? 0, y: m.pos_y ?? 0 },
+        type: "person",
+        data: {
+          label: m.label ?? "Person",
+          bio: m.bio,
+          born_year: m.born_year,
+          died_year: m.died_year,
+          lat: m.lat,
+          lng: m.lng,
+          tags: m.tags ?? [],
+          accent: style?.accent || autoAccent(m.id),
+          profile,
+        },
+      });
+    });
 
     const loadedEdges: Edge[] = (ed.data || []).map((e: any) => ({
       id: e.id,
@@ -181,7 +221,7 @@ function WorkspaceInner() {
       tags: node.data.tags,
       pos_x: node.position.x,
       pos_y: node.position.y,
-      style: { accent: node.data.accent },
+      style: { accent: node.data.accent, profile: node.data.profile ?? {} },
     };
     await supabase.from("members").upsert(payload);
     setIsSyncing(false);
@@ -200,7 +240,7 @@ function WorkspaceInner() {
       id,
       position: { x: Math.random() * 400, y: Math.random() * 400 },
       type: "person",
-      data: { label: "New Member", accent, tags: [] },
+      data: { label: "New Member", accent, tags: [], profile: { isLiving: true } },
     };
 
     setNodes((prev) => [...prev, newNode]);
@@ -212,7 +252,7 @@ function WorkspaceInner() {
       label: newNode.data.label,
       pos_x: newNode.position.x,
       pos_y: newNode.position.y,
-      style: { accent },
+      style: { accent, profile: newNode.data.profile ?? {} },
     });
 
     setIsSyncing(false);
@@ -496,32 +536,314 @@ function EmptyState({ onAdd, tier }: { onAdd: () => void; tier: Tier }) {
 
 // Keep Inspector + Fields exactly as is to ensure data integrity
 function Inspector({ node, onClose, onChange }: { node: Node<MemberData>; onClose: () => void; onChange: (patch: Partial<MemberData>) => void; }) {
+  const [panelTab, setPanelTab] = useState<"view" | "edit">("view");
+  const profile = node.data.profile ?? {};
+
+  useEffect(() => {
+    setPanelTab("view");
+  }, [node.id]);
+
+  const updateProfile = (patch: Partial<MemberProfile>) => {
+    onChange({ profile: { ...profile, ...patch } });
+  };
+
+  const handleBirthDateChange = (value: string) => {
+    updateProfile({ birthDate: value || null });
+    const year = value ? Number(value.slice(0, 4)) : null;
+    if (value && Number.isFinite(year)) onChange({ born_year: year });
+    if (!value) onChange({ born_year: null });
+  };
+
+  const handleDeathDateChange = (value: string) => {
+    updateProfile({ deathDate: value || null });
+    const year = value ? Number(value.slice(0, 4)) : null;
+    if (value && Number.isFinite(year)) onChange({ died_year: year });
+    if (!value) onChange({ died_year: null });
+  };
+
+  const livingStatus =
+    profile.isLiving === true
+      ? "Living"
+      : profile.isLiving === false
+      ? "Deceased"
+      : node.data.died_year
+      ? "Deceased"
+      : "Unknown";
+
   return (
     <motion.div initial={{ x: 420, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 420, opacity: 0 }} transition={{ type: "spring", damping: 24, stiffness: 220 }} className="absolute top-16 right-4 h-[calc(100vh-80px)] w-[360px] border border-white/10 bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl shadow-2xl overflow-hidden z-50">
       <div className="h-14 px-5 flex items-center justify-between border-b border-white/10 bg-white/[0.02]">
-        <div className="text-xs font-bold uppercase tracking-widest text-white/50">Details</div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-bold uppercase tracking-widest text-white/50">Details</div>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30">{livingStatus}</span>
+        </div>
         <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition"><X size={16} /></button>
       </div>
-      <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-56px)]">
-        {/* Name Field */}
-        <div className="space-y-1">
-            <label className="text-xs font-bold text-white/40 uppercase">Full Name</label>
-            <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg font-bold text-white outline-none focus:border-indigo-500 transition-colors" value={node.data.label} onChange={(e) => onChange({ label: e.target.value })} />
+      <div className="px-5 pt-4">
+        <div className="flex items-center gap-2 rounded-full bg-white/5 p-1">
+          {(["view", "edit"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setPanelTab(tab)}
+              className={`flex-1 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-widest transition ${
+                panelTab === tab ? "bg-white text-black" : "text-white/50 hover:text-white"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
-        
-        {/* Years Grid */}
-        <div className="grid grid-cols-2 gap-4">
-            <Field label="Born"><input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={node.data.born_year ?? ""} onChange={(e) => onChange({ born_year: e.target.value ? Number(e.target.value) : null })} /></Field>
-            <Field label="Died"><input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={node.data.died_year ?? ""} onChange={(e) => onChange({ died_year: e.target.value ? Number(e.target.value) : null })} /></Field>
-        </div>
+      </div>
+      <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-108px)]">
+        {panelTab === "view" ? (
+          <>
+            <Section title="Identity">
+              <DetailRow label="Full name" value={node.data.label} />
+              <DetailRow label="Preferred name" value={profile.preferredName} />
+              <DetailRow label="Middle name" value={profile.middleName} />
+              <DetailRow label="Suffix" value={profile.suffix} />
+              <DetailRow label="Gender" value={profile.gender} />
+              <DetailRow label="Pronouns" value={profile.pronouns} />
+              <DetailRow label="Living status" value={livingStatus} />
+            </Section>
 
-        <Field label="Biography">
-          <textarea className="w-full h-32 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-indigo-500 leading-relaxed" value={node.data.bio ?? ""} onChange={(e) => onChange({ bio: e.target.value })} placeholder="Tell their story..." />
-        </Field>
+            <Section title="Life">
+              <DetailRow label="Birth date" value={profile.birthDate} />
+              <DetailRow label="Birth place" value={profile.birthPlace} />
+              <DetailRow label="Born year" value={node.data.born_year ? String(node.data.born_year) : null} />
+              <DetailRow label="Death date" value={profile.deathDate} />
+              <DetailRow label="Death place" value={profile.deathPlace} />
+              <DetailRow label="Died year" value={node.data.died_year ? String(node.data.died_year) : null} />
+              <DetailRow label="Cause of death" value={profile.causeOfDeath} />
+              <DetailRow label="Burial place" value={profile.burialPlace} />
+            </Section>
 
-        <div className="pt-4 border-t border-white/10">
-          <button onClick={() => { navigator.clipboard.writeText(node.id); alert("Copied ID"); }} className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-white/60 flex items-center justify-center gap-2"><Share2 size={12} /> Copy Node ID</button>
-        </div>
+            <Section title="Work & Education">
+              <DetailRow label="Occupation" value={profile.occupation} />
+              <DetailRow label="Employer" value={profile.employer} />
+              <DetailRow label="Education" value={profile.education} />
+              <DetailRow label="Military service" value={profile.militaryService} />
+            </Section>
+
+            <Section title="Family & Social">
+              <DetailRow label="Relationship status" value={profile.relationshipStatus} />
+              <DetailRow label="Spouse" value={profile.spouseName} />
+              <DetailRow label="Children count" value={profile.childrenCount?.toString()} />
+              <DetailRow label="Nationality" value={profile.nationality} />
+              <DetailRow label="Ethnicity" value={profile.ethnicity} />
+              <DetailRow label="Religion" value={profile.religion} />
+              <DetailRow label="Languages" value={profile.languages} />
+            </Section>
+
+            <Section title="Contact & Location">
+              <DetailRow label="Residence" value={profile.residence} />
+              <DetailRow label="Email" value={profile.email} />
+              <DetailRow label="Phone" value={profile.phone} />
+              <DetailRow label="Website" value={profile.website} />
+              <DetailRow label="Social" value={profile.socialHandle} />
+              <DetailRow label="Coordinates" value={node.data.lat && node.data.lng ? `${node.data.lat}, ${node.data.lng}` : null} />
+              <DetailRow label="Tags" value={node.data.tags?.length ? node.data.tags.join(", ") : null} />
+            </Section>
+
+            <Section title="Biography">
+              <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{node.data.bio || "No biography added yet."}</p>
+            </Section>
+
+            <Section title="Research notes">
+              <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{profile.notes || "No notes yet."}</p>
+            </Section>
+          </>
+        ) : (
+          <>
+            {/* Name Field */}
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-white/40 uppercase">Full Name</label>
+                <input className="w-full bg-transparent border-b border-white/10 py-2 text-lg font-bold text-white outline-none focus:border-indigo-500 transition-colors" value={node.data.label} onChange={(e) => onChange({ label: e.target.value })} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Preferred name">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.preferredName ?? ""} onChange={(e) => updateProfile({ preferredName: e.target.value })} />
+              </Field>
+              <Field label="Middle name">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.middleName ?? ""} onChange={(e) => updateProfile({ middleName: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Suffix">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.suffix ?? ""} onChange={(e) => updateProfile({ suffix: e.target.value })} />
+              </Field>
+              <Field label="Pronouns">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.pronouns ?? ""} onChange={(e) => updateProfile({ pronouns: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Gender">
+                <select className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.gender ?? "unknown"} onChange={(e) => updateProfile({ gender: e.target.value as MemberProfile["gender"] })}>
+                  <option value="unknown">Unknown</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="nonbinary">Nonbinary</option>
+                  <option value="other">Other</option>
+                </select>
+              </Field>
+              <Field label="Living status">
+                <select
+                  className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  value={profile.isLiving === true ? "living" : profile.isLiving === false ? "deceased" : "unknown"}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateProfile({ isLiving: value === "living" ? true : value === "deceased" ? false : null });
+                  }}
+                >
+                  <option value="unknown">Unknown</option>
+                  <option value="living">Living</option>
+                  <option value="deceased">Deceased</option>
+                </select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Birth date">
+                <input type="date" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.birthDate ?? ""} onChange={(e) => handleBirthDateChange(e.target.value)} />
+              </Field>
+              <Field label="Death date">
+                <input type="date" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.deathDate ?? ""} onChange={(e) => handleDeathDateChange(e.target.value)} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <Field label="Born year"><input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={node.data.born_year ?? ""} onChange={(e) => onChange({ born_year: e.target.value ? Number(e.target.value) : null })} /></Field>
+                <Field label="Died year"><input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={node.data.died_year ?? ""} onChange={(e) => onChange({ died_year: e.target.value ? Number(e.target.value) : null })} /></Field>
+            </div>
+
+            <Field label="Birth place">
+              <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.birthPlace ?? ""} onChange={(e) => updateProfile({ birthPlace: e.target.value })} />
+            </Field>
+
+            <Field label="Death place">
+              <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.deathPlace ?? ""} onChange={(e) => updateProfile({ deathPlace: e.target.value })} />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Cause of death">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.causeOfDeath ?? ""} onChange={(e) => updateProfile({ causeOfDeath: e.target.value })} />
+              </Field>
+              <Field label="Burial place">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.burialPlace ?? ""} onChange={(e) => updateProfile({ burialPlace: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Nationality">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.nationality ?? ""} onChange={(e) => updateProfile({ nationality: e.target.value })} />
+              </Field>
+              <Field label="Ethnicity">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.ethnicity ?? ""} onChange={(e) => updateProfile({ ethnicity: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Religion">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.religion ?? ""} onChange={(e) => updateProfile({ religion: e.target.value })} />
+              </Field>
+              <Field label="Languages">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.languages ?? ""} onChange={(e) => updateProfile({ languages: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Occupation">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.occupation ?? ""} onChange={(e) => updateProfile({ occupation: e.target.value })} />
+              </Field>
+              <Field label="Employer">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.employer ?? ""} onChange={(e) => updateProfile({ employer: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Education">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.education ?? ""} onChange={(e) => updateProfile({ education: e.target.value })} />
+              </Field>
+              <Field label="Military service">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.militaryService ?? ""} onChange={(e) => updateProfile({ militaryService: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Relationship status">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.relationshipStatus ?? ""} onChange={(e) => updateProfile({ relationshipStatus: e.target.value })} />
+              </Field>
+              <Field label="Spouse name">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.spouseName ?? ""} onChange={(e) => updateProfile({ spouseName: e.target.value })} />
+              </Field>
+            </div>
+
+            <Field label="Children count">
+              <input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.childrenCount ?? ""} onChange={(e) => updateProfile({ childrenCount: e.target.value ? Number(e.target.value) : null })} />
+            </Field>
+
+            <Field label="Residence">
+              <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.residence ?? ""} onChange={(e) => updateProfile({ residence: e.target.value })} />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Email">
+                <input type="email" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.email ?? ""} onChange={(e) => updateProfile({ email: e.target.value })} />
+              </Field>
+              <Field label="Phone">
+                <input type="tel" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.phone ?? ""} onChange={(e) => updateProfile({ phone: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Website">
+                <input type="url" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.website ?? ""} onChange={(e) => updateProfile({ website: e.target.value })} />
+              </Field>
+              <Field label="Social handle">
+                <input className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={profile.socialHandle ?? ""} onChange={(e) => updateProfile({ socialHandle: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Latitude">
+                <input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={node.data.lat ?? ""} onChange={(e) => onChange({ lat: e.target.value ? Number(e.target.value) : null })} />
+              </Field>
+              <Field label="Longitude">
+                <input type="number" className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500" value={node.data.lng ?? ""} onChange={(e) => onChange({ lng: e.target.value ? Number(e.target.value) : null })} />
+              </Field>
+            </div>
+
+            <Field label="Tags (comma separated)">
+              <input
+                className="w-full bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                value={(node.data.tags ?? []).join(", ")}
+                onChange={(e) =>
+                  onChange({
+                    tags: e.target.value
+                      .split(",")
+                      .map((tag) => tag.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </Field>
+
+            <Field label="Biography">
+              <textarea className="w-full h-32 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-indigo-500 leading-relaxed" value={node.data.bio ?? ""} onChange={(e) => onChange({ bio: e.target.value })} placeholder="Tell their story..." />
+            </Field>
+
+            <Field label="Research notes">
+              <textarea className="w-full h-28 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-indigo-500 leading-relaxed" value={profile.notes ?? ""} onChange={(e) => updateProfile({ notes: e.target.value })} placeholder="Sources, leads, and open questions..." />
+            </Field>
+
+            <div className="pt-4 border-t border-white/10">
+              <button onClick={() => { navigator.clipboard.writeText(node.id); alert("Copied ID"); }} className="w-full py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold text-white/60 flex items-center justify-center gap-2"><Share2 size={12} /> Copy Node ID</button>
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );
@@ -529,6 +851,24 @@ function Inspector({ node, onClose, onChange }: { node: Node<MemberData>; onClos
 
 function Field({ label, children }: any) {
   return <div><div className="text-xs text-white/40 font-bold uppercase mb-1.5">{label}</div>{children}</div>;
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+      <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-sm">
+      <span className="text-white/40 text-xs uppercase font-semibold tracking-wider">{label}</span>
+      <span className="text-white/80 text-sm text-right">{value && value.length ? value : "—"}</span>
+    </div>
+  );
 }
 
 function formatYears(b?: number | null, d?: number | null) {
