@@ -19,6 +19,8 @@ import {
   ArrowRight,
   Circle,
   Fan,
+  Maximize2,
+  Target,
 } from "lucide-react";
 
 import { NodeCard } from "./NodeCard";
@@ -142,12 +144,7 @@ export default function GraphView({
   const activeData = mode === "editor" && activeId ? focusData : data;
 
   // --- Semantic Zoom (RESTORED - View Mode Only) ---
-  const maxVisibleGeneration = useMemo(() => {
-    if (mode === "editor") return 999;
-    if (viewport.zoom > 0.8) return 999;
-    if (viewport.zoom > 0.4) return 3;
-    return 0;
-  }, [viewport.zoom, mode]);
+  const maxVisibleGeneration = useMemo(() => 999, []);
 
   // --- LAYOUT INPUT (FULL GRAPH for stable positioning) ---
   const workerInput = useMemo(() => {
@@ -301,7 +298,7 @@ export default function GraphView({
         onPaneClick={onPaneClick}
         onNodeMouseEnter={(_, node) => setHoveredNode(node.id)}
         onNodeMouseLeave={() => setHoveredNode(null)}
-        minZoom={0.01}
+        minZoom={0.0025}
         maxZoom={4}
         onlyRenderVisibleElements={true}
         nodesDraggable={mode === "editor"}
@@ -336,7 +333,7 @@ export default function GraphView({
         {/* Layout menu (View only) - RESTORED full options */}
         {mode === "view" && (
           <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
+            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[180px]">
               <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
                 Layout
               </div>
@@ -364,6 +361,22 @@ export default function GraphView({
                 onClick={() => setLayoutMode("fan")}
                 icon={<Fan size={16} />}
                 label="Fan Chart"
+              />
+
+              <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
+                View
+              </div>
+              <LayoutButton
+                active={false}
+                onClick={() => fitView({ duration: 900, padding: 0.2 })}
+                icon={<Maximize2 size={16} />}
+                label="Fit to Tree"
+              />
+              <LayoutButton
+                active={false}
+                onClick={() => setCenter(0, 0, { zoom: 1, duration: 700 })}
+                icon={<Target size={16} />}
+                label="Reset Zoom"
               />
             </div>
           </Panel>

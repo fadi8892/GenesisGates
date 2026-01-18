@@ -5,6 +5,7 @@
 const CONFIG = {
   NODE_WIDTH: 260,
   NODE_HEIGHT: 160,
+  NODE_CONNECT_Y: 80,
 
   SPOUSE_GAP: 20,
   SIBLING_GAP: 40,
@@ -216,7 +217,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
       const p1 = nodeMap[fam.parents[0]];
       const p2 = nodeMap[fam.parents[1]];
       if (p1 && p2) {
-        const midY = p1.y + CONFIG.NODE_HEIGHT / 2;
+        const midY = p1.y + CONFIG.NODE_CONNECT_Y;
         geometry.push({
           id: `part-${p1.id}-${p2.id}`,
           x1: p1.x + CONFIG.NODE_WIDTH,
@@ -238,7 +239,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
 
       if (p2) {
         originX = (p1.x + CONFIG.NODE_WIDTH + p2.x) / 2;
-        originY = p1.y + CONFIG.NODE_HEIGHT / 2;
+        originY = p1.y + CONFIG.NODE_CONNECT_Y;
       } else {
         originX = p1.x + CONFIG.NODE_WIDTH / 2;
         originY = p1.y + CONFIG.NODE_HEIGHT;
@@ -287,7 +288,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
           x1: childCenterX,
           y1: stemEndY,
           x2: childCenterX,
-          y2: child.y,
+          y2: child.y + CONFIG.NODE_CONNECT_Y,
           type: "branch",
         });
       }
@@ -381,10 +382,10 @@ function runTidyAncestors(nodes: any[], edges: any[], rootId: string | null) {
       const parentNode = nodeMap[p];
       geometry.push({
         id: `direct-${id}-${p}`,
-        x1: node.x + CONFIG.NODE_WIDTH,
-        y1: node.y,
-        x2: parentNode.x,
-        y2: parentNode.y,
+        x1: node.x + CONFIG.NODE_WIDTH / 2,
+        y1: node.y + CONFIG.NODE_CONNECT_Y,
+        x2: parentNode.x + CONFIG.NODE_WIDTH / 2,
+        y2: parentNode.y + CONFIG.NODE_CONNECT_Y,
         type: "direct",
       });
 
@@ -458,9 +459,9 @@ function runRadialAncestors(nodes: any[], edges: any[], rootId: string | null, i
       geometry.push({
         id: `direct-${id}-${p}`,
         x1: node.x + CONFIG.NODE_WIDTH / 2,
-        y1: node.y + CONFIG.NODE_HEIGHT / 2,
+        y1: node.y + CONFIG.NODE_CONNECT_Y,
         x2: pn.x + CONFIG.NODE_WIDTH / 2,
-        y2: pn.y + CONFIG.NODE_HEIGHT / 2,
+        y2: pn.y + CONFIG.NODE_CONNECT_Y,
         type: "direct",
       });
 

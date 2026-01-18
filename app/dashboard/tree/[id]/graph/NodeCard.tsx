@@ -147,22 +147,27 @@ export const NodeCard = memo(({ data, selected }: NodeProps<NodeData>) => {
     );
   }
 
-  // 2) LOW (LABEL)
+  // 2) LOW (CIRCLE)
   if (lod === "low") {
     return (
       <div
         className={`
-          w-[180px] h-[40px] rounded-full
+          w-[110px] h-[110px] rounded-full
           bg-white/90 shadow-sm border border-black/5
-          flex items-center px-4 gap-2 backdrop-blur-md
+          flex flex-col items-center justify-center gap-1 backdrop-blur-md
           transition-all duration-300 hover:scale-105 cursor-pointer
           ${dimClass}
           ${selected ? "ring-2 ring-[#0071E3]" : ""}
           ${highlightRing}
         `}
       >
-        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: safeAccent }} />
-        <span className="text-xs font-bold text-gray-700 truncate">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white shadow-sm"
+          style={{ background: `linear-gradient(135deg, ${safeAccent}, #111)` }}
+        >
+          {(label?.charAt(0) || "?").toUpperCase()}
+        </div>
+        <span className="text-[11px] font-bold text-gray-700 truncate max-w-[90px] text-center">
           {label || "Unknown"}
         </span>
 
