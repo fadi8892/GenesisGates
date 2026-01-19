@@ -23,6 +23,7 @@ type RenderLine = {
   id: string;
   x1: number; y1: number; x2: number; y2: number;
   type: "partnership" | "stem" | "branch" | "direct";
+  nodeIds?: string[];
 };
 
 type NodeLayout = {
@@ -224,6 +225,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
           x2: p2.x,
           y2: midY,
           type: "partnership",
+          nodeIds: [p1.id, p2.id],
         });
       }
     }
@@ -253,6 +255,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
         x2: originX,
         y2: stemEndY,
         type: "stem",
+        nodeIds: [...fam.parents, ...fam.children],
       });
 
       const childCenters = fam.children
@@ -273,6 +276,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
           x2: maxChildX,
           y2: stemEndY,
           type: "branch",
+          nodeIds: [...fam.parents, ...fam.children],
         });
       }
 
@@ -289,6 +293,7 @@ function runOrthogonalLayout(nodes: any[], edges: any[], isHorizontal: boolean) 
           x2: childCenterX,
           y2: child.y,
           type: "branch",
+          nodeIds: [...fam.parents, cid],
         });
       }
     }
@@ -386,6 +391,7 @@ function runTidyAncestors(nodes: any[], edges: any[], rootId: string | null) {
         x2: parentNode.x,
         y2: parentNode.y,
         type: "direct",
+        nodeIds: [id, p],
       });
 
       cy += h;
@@ -462,6 +468,7 @@ function runRadialAncestors(nodes: any[], edges: any[], rootId: string | null, i
         x2: pn.x + CONFIG.NODE_WIDTH / 2,
         y2: pn.y + CONFIG.NODE_HEIGHT / 2,
         type: "direct",
+        nodeIds: [id, p],
       });
 
       cur += ps;
