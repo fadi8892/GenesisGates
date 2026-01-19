@@ -12,13 +12,16 @@ import "reactflow/dist/style.css";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search,
-  RotateCcw,
   Plus,
   Minus,
   ArrowDown,
   ArrowRight,
   Circle,
   Fan,
+  Home,
+  Sparkles,
+  MousePointer2,
+  Rocket,
 } from "lucide-react";
 
 import { NodeCard } from "./NodeCard";
@@ -26,6 +29,7 @@ import { CanvasEdges } from "./CanvasEdges";
 import { useLayout } from "./useLayout";
 import { LayoutMode } from "./layout";
 import { useFocusGraph } from "../useFocusMode";
+import ContextMenu from "./ContextMenu";
 
 const nodeTypes = { person: NodeCard };
 
@@ -38,6 +42,13 @@ const sanitizeNode = (node: any) => ({
   },
 });
 
+type ContextState = {
+  type: "node" | "pane";
+  id?: string | null;
+  top: number;
+  left: number;
+};
+
 export default function GraphView({
   data,
   onOpenSidebar,
@@ -47,6 +58,8 @@ export default function GraphView({
   onAddParent,
   onAddChild,
   onAddPartner,
+  onDelete,
+  onAddRoot,
 }: {
   data: any;
   onOpenSidebar: (id: string) => void;
@@ -56,6 +69,8 @@ export default function GraphView({
   onAddParent?: (id: string) => void;
   onAddChild?: (id: string) => void;
   onAddPartner?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onAddRoot?: () => void;
 }) {
   const { fitView, zoomIn, zoomOut, setCenter } = useReactFlow();
 
@@ -69,6 +84,7 @@ export default function GraphView({
   const [showSearch, setShowSearch] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [geometry, setGeometry] = useState<any[]>([]);
+  const [contextMenu, setContextMenu] = useState<ContextState | null>(null);
 
   // --- SYNC activeId from parent ---
   useEffect(() => {
@@ -165,8 +181,13 @@ export default function GraphView({
     });
   }, [data?.nodes]);
 
-  const effectiveLayoutMode: LayoutMode = mode === "editor" ? "vertical" : layoutMode;
-  const layoutResult = useLayout(workerInput, data?.edges || [], effectiveLayoutMode);
+  const effectiveLayoutMode: LayoutMode =
+    mode === "editor" ? "vertical" : layoutMode;
+  const layoutResult = useLayout(
+    workerInput,
+    data?.edges || [],
+    effectiveLayoutMode
+  );
 
   // --- FINAL NODE MERGE (RESTORED: semantic filter + highlight flags + zIndex) ---
   useEffect(() => {
@@ -224,6 +245,7 @@ export default function GraphView({
             onAddParent,
             onAddChild,
             onAddPartner,
+            onDelete,
           },
           zIndex: isHighlighted ? 10 : 0,
         };
@@ -249,6 +271,7 @@ export default function GraphView({
     onAddParent,
     onAddChild,
     onAddPartner,
+    onDelete,
     setNodes,
     fitView,
     isReady,
@@ -260,7 +283,10 @@ export default function GraphView({
       onOpenSidebar(node.id);
 
       // Zoom to High Detail on click
-      if (Number.isFinite(node.position.x) && Number.isFinite(node.position.y)) {
+      if (
+        Number.isFinite(node.position.x) &&
+        Number.isFinite(node.position.y)
+      ) {
         setCenter(node.position.x + 130, node.position.y + 80, {
           zoom: 1.5,
           duration: 1200,
@@ -272,12 +298,51 @@ export default function GraphView({
 
   const onPaneClick = useCallback(() => {
     setSelectedId(null);
+    setContextMenu(null);
   }, []);
+
+  const handleContextMenu = useCallback(
+    (
+      event: React.MouseEvent,
+      type: "node" | "pane",
+      id?: string | null
+    ) => {
+      event.preventDefault();
+      if (!wrapperRef.current) return;
+      const bounds = wrapperRef.current.getBoundingClientRect();
+      const left = Math.min(
+        event.clientX - bounds.left,
+        bounds.width - 240
+      );
+      const top = Math.min(
+        event.clientY - bounds.top,
+        bounds.height - 240
+      );
+
+      setContextMenu({ type, id, left: Math.max(left, 12), top: Math.max(top, 12) });
+    },
+    []
+  );
+
+  const resetView = useCallback(() => {
+    setSelectedId(null);
+    fitView({ duration: 1000, padding: 0.12 });
+  }, [fitView]);
+
+  const activeNodeLabel = useMemo(() => {
+    if (!contextMenu?.id) return null;
+    const found = nodes.find((n: any) => n.id === contextMenu.id);
+    return found?.data?.label ?? "Unknown";
+  }, [contextMenu?.id, nodes]);
 
   return (
     <div
       ref={wrapperRef}
-      className="w-full h-full bg-[#F5F5F7] relative overflow-hidden font-sans"
+      className="w-full h-full relative overflow-hidden font-sans"
+      style={{
+        background:
+          "radial-gradient(circle at top, rgba(199,210,254,0.55), rgba(255,255,255,0.7) 45%, rgba(226,232,255,0.35) 70%, rgba(240,244,255,0.9))",
+      }}
     >
       <CanvasEdges
         geometry={geometry}
@@ -292,7 +357,11 @@ export default function GraphView({
         edges={[]}
         nodeTypes={nodeTypes}
         onMove={(_, vp) => {
-          if (Number.isFinite(vp.x) && Number.isFinite(vp.y) && Number.isFinite(vp.zoom)) {
+          if (
+            Number.isFinite(vp.x) &&
+            Number.isFinite(vp.y) &&
+            Number.isFinite(vp.zoom)
+          ) {
             setViewport(vp);
           }
         }}
@@ -301,6 +370,10 @@ export default function GraphView({
         onPaneClick={onPaneClick}
         onNodeMouseEnter={(_, node) => setHoveredNode(node.id)}
         onNodeMouseLeave={() => setHoveredNode(null)}
+        onNodeContextMenu={(event, node) =>
+          handleContextMenu(event, "node", node.id)
+        }
+        onPaneContextMenu={(event) => handleContextMenu(event, "pane")}
         minZoom={0.01}
         maxZoom={4}
         onlyRenderVisibleElements={true}
@@ -309,34 +382,63 @@ export default function GraphView({
         elementsSelectable={true}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#000" gap={40} size={1} style={{ opacity: 0.05 }} />
+        <Background color="#000" gap={40} size={1} style={{ opacity: 0.04 }} />
+
+        {/* Top hint */}
+        <Panel position="top-left" className="mt-5 ml-5">
+          <div className="glass-panel rounded-2xl px-4 py-3 shadow-xl border border-white/60 bg-white/70 backdrop-blur-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-lg">
+              <Rocket size={18} />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-400 font-bold">
+                Magic Map
+              </p>
+              <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <MousePointer2 size={14} className="text-purple-500" /> Right-click for
+                superpowers
+              </p>
+            </div>
+          </div>
+        </Panel>
 
         {/* Bottom dock */}
         <Panel position="bottom-center" className="mb-8">
-          <div className="glass-panel rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-all hover:scale-105">
+          <div className="glass-panel rounded-full p-2 flex items-center gap-2 shadow-2xl transition-all hover:scale-105 bg-white/80 backdrop-blur-2xl border border-white/60">
             <ControlButton
               onClick={() => setShowSearch(!showSearch)}
               icon={<Search size={18} />}
+              label="FIND"
             />
-            <div className="w-px h-4 bg-black/10 mx-1" />
+            <div className="w-px h-5 bg-black/10 mx-1" />
             <ControlButton
-              onClick={() => {
-                setSelectedId(null);
-                fitView({ duration: 1000, padding: 0.12 });
-              }}
-              icon={<RotateCcw size={16} />}
-              label="RESET"
+              onClick={resetView}
+              icon={<Home size={18} />}
+              label="HOME"
             />
-            <div className="w-px h-4 bg-black/10 mx-1" />
-            <ControlButton onClick={() => zoomOut()} icon={<Minus size={18} />} />
-            <ControlButton onClick={() => zoomIn()} icon={<Plus size={18} />} />
+            <ControlButton
+              onClick={() => zoomOut()}
+              icon={<Minus size={18} />}
+              label="ZOOM OUT"
+            />
+            <ControlButton
+              onClick={() => zoomIn()}
+              icon={<Plus size={18} />}
+              label="ZOOM IN"
+            />
+            <div className="w-px h-5 bg-black/10 mx-1" />
+            <ControlButton
+              onClick={() => setShowSearch(!showSearch)}
+              icon={<Sparkles size={18} />}
+              label="WOW"
+            />
           </div>
         </Panel>
 
         {/* Layout menu (View only) - RESTORED full options */}
         {mode === "view" && (
-          <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
+          <Panel position="top-right" className="mt-5 mr-5">
+            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[170px] bg-white/80 backdrop-blur-2xl border border-white/60">
               <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
                 Layout
               </div>
@@ -377,7 +479,7 @@ export default function GraphView({
                 initial={{ y: -20, opacity: 0, scale: 0.95 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
                 exit={{ y: -10, opacity: 0, scale: 0.95 }}
-                className="glass-panel p-2 rounded-xl shadow-xl backdrop-blur-3xl"
+                className="glass-panel p-2 rounded-2xl shadow-xl backdrop-blur-3xl bg-white/90 border border-white/60"
               >
                 <div className="flex items-center px-3">
                   <Search className="w-5 h-5 text-gray-400 mr-2" />
@@ -412,6 +514,28 @@ export default function GraphView({
             </Panel>
           )}
         </AnimatePresence>
+
+        {/* Right click context menu */}
+        {contextMenu && (
+          <ContextMenu
+            top={contextMenu.top}
+            left={contextMenu.left}
+            nodeId={contextMenu.type === "node" ? contextMenu.id : null}
+            nodeLabel={contextMenu.type === "node" ? activeNodeLabel : null}
+            canEdit={mode === "editor"}
+            onClose={() => setContextMenu(null)}
+            onOpenProfile={(id) => {
+              setSelectedId(id);
+              onOpenSidebar(id);
+            }}
+            onAddParent={onAddParent}
+            onAddChild={onAddChild}
+            onAddPartner={onAddPartner}
+            onDelete={onDelete}
+            onAddRoot={onAddRoot}
+            onResetView={resetView}
+          />
+        )}
       </ReactFlow>
     </div>
   );
@@ -421,7 +545,7 @@ function ControlButton({ onClick, icon, label }: any) {
   return (
     <button
       onClick={onClick}
-      className="p-3 rounded-full hover:bg-black/5 text-[#1D1D1F] transition-colors flex items-center gap-2 group active:scale-90"
+      className="px-4 py-2 rounded-full hover:bg-black/5 text-[#1D1D1F] transition-colors flex items-center gap-2 group active:scale-95"
     >
       {icon}
       {label && (
@@ -439,7 +563,7 @@ function LayoutButton({ onClick, icon, label, active }: any) {
       onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-300 w-full text-left ${
         active
-          ? "bg-white shadow-md text-[#0071E3]"
+          ? "bg-white shadow-md text-[#7C3AED]"
           : "text-[#86868B] hover:bg-black/5 hover:text-[#1D1D1F]"
       }`}
     >

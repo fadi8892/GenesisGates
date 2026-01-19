@@ -1,8 +1,13 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { 
-  Search, ChevronRight, ChevronDown, User, Plus, Trash2, FolderOpen 
+import {
+  Search,
+  ChevronRight,
+  ChevronDown,
+  User,
+  Plus,
+  FolderOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GraphData } from "./graph/types";
