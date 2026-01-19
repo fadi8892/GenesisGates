@@ -7,7 +7,6 @@ const CONFIG = {
   NODE_WIDTH: 260,
   NODE_HEIGHT: 160,
   PARTNER_GAP: 24,
-  SIBLING_GAP: 48,
   GROUP_GAP: 140,
   GENERATION_GAP: 220,
   RADIAL_RADIUS_STEP: 320,
@@ -27,6 +26,15 @@ type LayoutNode = {
   x: number;
   y: number;
   generation: number;
+};
+
+type LayoutGroup = {
+  id: string;
+  members: string[];
+  generation: number;
+  width: number;
+  x: number;
+  desiredCenter: number | null;
 };
 
 type GraphMaps = {
@@ -161,10 +169,19 @@ function buildPartnerGroups(nodes: any[], partnerEdges: any[]) {
   return groups;
 }
 
+function getLabel(node: any) {
+  const label = node?.data?.label ?? node?.data?.name ?? node?.label;
+  return String(label ?? "").toLowerCase();
+}
+
 function computeLayeredPositions(nodes: any[], edges: any[]) {
   const { nodeIds, parentEdges, parentMap, childMap, partnerEdges } = buildMaps(nodes, edges);
   const generations = computeGenerations(nodeIds, parentMap, childMap);
   const partnerGroups = buildPartnerGroups(nodes, partnerEdges);
+  const nodeById: Record<string, any> = {};
+  for (const node of nodes) {
+    nodeById[node.id] = node;
+  }
   const partnerGroupByNode: Record<string, string> = {};
   for (const [groupId, members] of Object.entries(partnerGroups)) {
     for (const member of members) {
@@ -180,8 +197,8 @@ function computeLayeredPositions(nodes: any[], edges: any[]) {
   }
 
   const generationKeys = Array.from(nodesByGeneration.keys()).sort((a, b) => a - b);
-  const orderIndex: Record<string, number> = {};
   const positions: Record<string, LayoutNode> = {};
+  const groupCenters: Record<string, number> = {};
 
   for (const gen of generationKeys) {
     const nodesInGen = nodesByGeneration.get(gen) ?? [];
@@ -193,32 +210,71 @@ function computeLayeredPositions(nodes: any[], edges: any[]) {
       groupBuckets[groupKey].push(nodeId);
     }
 
-    const groups = Object.entries(groupBuckets).map(([key, members]) => {
-      const sortedMembers = Array.from(new Set(members)).sort();
-      const parentOrders = sortedMembers.flatMap((id) =>
-        (parentMap[id] || []).map((p) => orderIndex[p]).filter((v) => v != null)
+    const groups: LayoutGroup[] = Object.entries(groupBuckets).map(([key, members]) => {
+      const uniqueMembers = Array.from(new Set(members)).sort((a, b) => {
+        const labelA = getLabel(nodeById[a]);
+        const labelB = getLabel(nodeById[b]);
+        return labelA.localeCompare(labelB);
+      });
+      const parentCenters = uniqueMembers.flatMap((id) =>
+        (parentMap[id] || [])
+          .map((p) => groupCenters[partnerGroupByNode[p] ?? p])
+          .filter((v) => v != null)
       );
-      const score =
-        parentOrders.length > 0
-          ? parentOrders.reduce((a, b) => a + b, 0) / parentOrders.length
-          : Number.POSITIVE_INFINITY;
+      const desiredCenter =
+        parentCenters.length > 0
+          ? parentCenters.reduce((a, b) => a + b, 0) / parentCenters.length
+          : null;
+      const width =
+        uniqueMembers.length * CONFIG.NODE_WIDTH +
+        Math.max(0, uniqueMembers.length - 1) * CONFIG.PARTNER_GAP;
 
-      return { key, members: sortedMembers, score };
+      return {
+        id: key,
+        members: uniqueMembers,
+        generation: gen,
+        width,
+        x: 0,
+        desiredCenter,
+      };
     });
 
     groups.sort((a, b) => {
-      if (a.score !== b.score) return a.score - b.score;
-      return a.key.localeCompare(b.key);
+      const aScore = a.desiredCenter ?? Number.POSITIVE_INFINITY;
+      const bScore = b.desiredCenter ?? Number.POSITIVE_INFINITY;
+      if (aScore !== bScore) return aScore - bScore;
+      return a.id.localeCompare(b.id);
     });
 
     let cursorX = 0;
-    let order = 0;
     for (const group of groups) {
-      const groupWidth =
-        group.members.length * CONFIG.NODE_WIDTH +
-        Math.max(0, group.members.length - 1) * CONFIG.PARTNER_GAP;
-      let memberX = cursorX;
+      group.x = group.desiredCenter != null ? group.desiredCenter - group.width / 2 : cursorX;
+      cursorX = group.x + group.width + CONFIG.GROUP_GAP;
+    }
 
+    groups.sort((a, b) => a.x - b.x);
+
+    for (let i = 1; i < groups.length; i++) {
+      const prev = groups[i - 1];
+      const current = groups[i];
+      const minX = prev.x + prev.width + CONFIG.GROUP_GAP;
+      if (current.x < minX) current.x = minX;
+    }
+
+    for (let i = groups.length - 2; i >= 0; i--) {
+      const next = groups[i + 1];
+      const current = groups[i];
+      const maxX = next.x - current.width - CONFIG.GROUP_GAP;
+      if (current.x > maxX) current.x = maxX;
+    }
+
+    const minX = Math.min(...groups.map((g) => g.x));
+    const maxX = Math.max(...groups.map((g) => g.x + g.width));
+    const offset = (minX + maxX) / 2;
+
+    for (const group of groups) {
+      group.x -= offset;
+      let memberX = group.x;
       for (const member of group.members) {
         positions[member] = {
           id: member,
@@ -226,12 +282,9 @@ function computeLayeredPositions(nodes: any[], edges: any[]) {
           y: gen * CONFIG.GENERATION_GAP,
           generation: gen,
         };
-        orderIndex[member] = order;
-        order += 1;
         memberX += CONFIG.NODE_WIDTH + CONFIG.PARTNER_GAP;
       }
-
-      cursorX += groupWidth + CONFIG.GROUP_GAP;
+      groupCenters[group.id] = group.x + group.width / 2;
     }
   }
 
