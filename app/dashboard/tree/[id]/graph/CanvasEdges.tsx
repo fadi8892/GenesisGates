@@ -11,6 +11,7 @@ type Line = {
   x2: number;
   y2: number;
   type?: "bezier" | "step" | "line";
+  nodeIds?: string[];
 };
 
 type Props = {
@@ -59,6 +60,8 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
     ctx.lineJoin = "round";
 
     const hasHighlight = !!highlightSet && highlightSet.size > 0;
+    const zoom = Math.max(0.05, cam.z);
+    const thicknessScale = Math.min(3, Math.max(0.75, Math.pow(1 / zoom, 0.6)));
 
     // Culling margin (in screen space)
     const margin = 100;
@@ -103,7 +106,7 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
         if (!highlightSet!.has(line.id)) addPath(line);
       }
       ctx.strokeStyle = "#E5E5EA";
-      ctx.lineWidth = 1 * cam.z;
+      ctx.lineWidth = 1 * thicknessScale;
       ctx.stroke();
 
       // Pass 2: draw HIGHLIGHTED
@@ -112,12 +115,12 @@ export function CanvasEdges({ geometry, cam, size, highlightSet }: Props) {
         if (highlightSet!.has(line.id)) addPath(line);
       }
       ctx.strokeStyle = "#A1A1AA";
-      ctx.lineWidth = 2 * cam.z;
+      ctx.lineWidth = 2 * thicknessScale;
       ctx.stroke();
     } else {
       for (const line of safeGeometry) addPath(line);
       ctx.strokeStyle = "#A1A1AA";
-      ctx.lineWidth = 2 * cam.z;
+      ctx.lineWidth = 2 * thicknessScale;
       ctx.stroke();
     }
   }, [geometry, cam.x, cam.y, cam.z, size.w, size.h, dpr, highlightSet]);

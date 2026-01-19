@@ -144,8 +144,12 @@ export default function GraphView({
   // --- Semantic Zoom (RESTORED - View Mode Only) ---
   const maxVisibleGeneration = useMemo(() => {
     if (mode === "editor") return 999;
-    if (viewport.zoom > 0.8) return 999;
-    if (viewport.zoom > 0.4) return 3;
+    if (viewport.zoom >= 1.25) return 999;
+    if (viewport.zoom >= 0.9) return 6;
+    if (viewport.zoom >= 0.7) return 4;
+    if (viewport.zoom >= 0.5) return 3;
+    if (viewport.zoom >= 0.35) return 2;
+    if (viewport.zoom >= 0.25) return 1;
     return 0;
   }, [viewport.zoom, mode]);
 
@@ -165,7 +169,7 @@ export default function GraphView({
     });
   }, [data?.nodes]);
 
-  const effectiveLayoutMode: LayoutMode = mode === "editor" ? "vertical" : layoutMode;
+  const effectiveLayoutMode: LayoutMode = layoutMode;
   const layoutResult = useLayout(workerInput, data?.edges || [], effectiveLayoutMode);
 
   // --- FINAL NODE MERGE (RESTORED: semantic filter + highlight flags + zIndex) ---
@@ -231,7 +235,17 @@ export default function GraphView({
       .map(sanitizeNode);
 
     setNodes(mergedNodes);
-    setGeometry(layoutResult.geometry || []);
+
+    const visibleIds = new Set(mergedNodes.map((n: any) => n.id));
+    const filteredGeometry =
+      mode === "view"
+        ? (layoutResult.geometry || []).filter((line: any) => {
+            if (!Array.isArray(line?.nodeIds) || line.nodeIds.length === 0) return true;
+            return line.nodeIds.every((id: string) => visibleIds.has(id));
+          })
+        : layoutResult.geometry || [];
+
+    setGeometry(filteredGeometry);
 
     // Auto-fit: first load only (don’t fight user after)
     if (!isReady) {
@@ -334,40 +348,38 @@ export default function GraphView({
         </Panel>
 
         {/* Layout menu (View only) - RESTORED full options */}
-        {mode === "view" && (
-          <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
-                Layout
-              </div>
-
-              <LayoutButton
-                active={layoutMode === "vertical"}
-                onClick={() => setLayoutMode("vertical")}
-                icon={<ArrowDown size={16} />}
-                label="Descendancy"
-              />
-              <LayoutButton
-                active={layoutMode === "horizontal"}
-                onClick={() => setLayoutMode("horizontal")}
-                icon={<ArrowRight size={16} />}
-                label="Landscape"
-              />
-              <LayoutButton
-                active={layoutMode === "circular"}
-                onClick={() => setLayoutMode("circular")}
-                icon={<Circle size={16} />}
-                label="Circular"
-              />
-              <LayoutButton
-                active={layoutMode === "fan"}
-                onClick={() => setLayoutMode("fan")}
-                icon={<Fan size={16} />}
-                label="Fan Chart"
-              />
+        <Panel position="top-right" className="mt-4 mr-4">
+          <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
+              Layout
             </div>
-          </Panel>
-        )}
+
+            <LayoutButton
+              active={layoutMode === "vertical"}
+              onClick={() => setLayoutMode("vertical")}
+              icon={<ArrowDown size={16} />}
+              label="Descendancy"
+            />
+            <LayoutButton
+              active={layoutMode === "horizontal"}
+              onClick={() => setLayoutMode("horizontal")}
+              icon={<ArrowRight size={16} />}
+              label="Landscape"
+            />
+            <LayoutButton
+              active={layoutMode === "circular"}
+              onClick={() => setLayoutMode("circular")}
+              icon={<Circle size={16} />}
+              label="Circular"
+            />
+            <LayoutButton
+              active={layoutMode === "fan"}
+              onClick={() => setLayoutMode("fan")}
+              icon={<Fan size={16} />}
+              label="Fan Chart"
+            />
+          </div>
+        </Panel>
 
         {/* Search */}
         <AnimatePresence>
