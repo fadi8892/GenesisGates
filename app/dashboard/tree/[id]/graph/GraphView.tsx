@@ -144,12 +144,10 @@ export default function GraphView({
   // --- Semantic Zoom (RESTORED - View Mode Only) ---
   const maxVisibleGeneration = useMemo(() => {
     if (mode === "editor") return 999;
-    if (viewport.zoom >= 1.25) return 999;
-    if (viewport.zoom >= 0.9) return 6;
-    if (viewport.zoom >= 0.7) return 4;
-    if (viewport.zoom >= 0.5) return 3;
-    if (viewport.zoom >= 0.35) return 2;
-    if (viewport.zoom >= 0.25) return 1;
+    const z = viewport.zoom;
+    if (z > 0.8) return 999;
+    if (z > 0.5) return 2;
+    if (z > 0.2) return 1;
     return 0;
   }, [viewport.zoom, mode]);
 
