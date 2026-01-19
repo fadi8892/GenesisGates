@@ -12,9 +12,9 @@ type TreeSize = { width: number; height: number };
 const CONFIG = {
   NODE_WIDTH: 300,
   NODE_HEIGHT: 180,
-  SIBLING_GAP: 50, // Gap between brothers/sisters
-  COUSIN_GAP: 300, // Separation between cousin branches
-  GENERATION_GAP: 250, // Vertical space between parents and children
+  SIBLING_GAP: 30, // Gap between brothers/sisters
+  COUSIN_GAP: 180, // Separation between cousin branches
+  GENERATION_GAP: 260, // Vertical space between parents and children
 };
 
 const computeDepth = (nodes: Node[], edges: Edge[]) => {
