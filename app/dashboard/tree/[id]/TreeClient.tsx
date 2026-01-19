@@ -368,6 +368,8 @@ export default function TreeClient({ treeId, initialData }: TreeClientProps) {
             onAddChild={handleAddChild}
             onAddParent={handleAddParent}
             onAddPartner={handleAddPartner}
+            onDelete={handleDeleteNode}
+            onAddRoot={() => handleAddNode(null)}
           />
         </ReactFlowProvider>
       </div>
