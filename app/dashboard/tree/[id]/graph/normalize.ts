@@ -90,11 +90,21 @@ export function normalizeEdge(e: DbEdge, treeId: string): Edge | null {
 
   if (!source || !target) return null;
 
+  const kind =
+    e.kind ??
+    e.relationship ??
+    e.rel_type ??
+    e.relation ??
+    e.edge_type ??
+    null;
+
   return {
     id: String(e.id ?? `${source}->${target}`),
     tree_id: String(e.tree_id ?? treeId),
     source: String(source),
     target: String(target),
-    type: e.type ?? null,
+    type: e.type ?? kind ?? null,
+    kind: kind ?? null,
+    data: e.data ?? null,
   };
 }

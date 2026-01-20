@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { GraphData } from './graph/types';
+import { isParentChildEdge } from './graph/relationships';
 
 export function useFocusGraph(fullData: GraphData, focusId: string | null) {
   return useMemo(() => {
@@ -19,6 +20,7 @@ export function useFocusGraph(fullData: GraphData, focusId: string | null) {
 
       // Find edges where target is currentId (incoming edges from parents)
       fullData.edges.forEach(e => {
+        if (!isParentChildEdge(e)) return;
         if (e.target === currentId) {
            relevantNodeIds.add(e.source); // Add Parent
            relevantEdgeIds.add(e.id);     // Add Edge
@@ -32,6 +34,7 @@ export function useFocusGraph(fullData: GraphData, focusId: string | null) {
     const getChildren = (parentId: string) => {
         const childrenIds: string[] = [];
         fullData.edges.forEach(e => {
+            if (!isParentChildEdge(e)) return;
             if (e.source === parentId) {
                 relevantNodeIds.add(e.target);
                 relevantEdgeIds.add(e.id);

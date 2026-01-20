@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GraphData } from "./graph/types";
+import { isParentChildEdge } from "./graph/relationships";
 
 type Props = {
   data: GraphData;
@@ -16,7 +17,16 @@ type Props = {
 };
 
 // Recursive Tree Item Component
-const TreeItem = ({ node, childrenIds, allNodes, depth, onSelect, activeId, onAdd }: any) => {
+const TreeItem = ({
+  node,
+  childrenIds,
+  allNodes,
+  childrenById,
+  depth,
+  onSelect,
+  activeId,
+  onAdd,
+}: any) => {
   const [isOpen, setIsOpen] = useState(true);
   const isActive = activeId === node.id;
   const hasChildren = childrenIds.length > 0;
@@ -60,8 +70,7 @@ const TreeItem = ({ node, childrenIds, allNodes, depth, onSelect, activeId, onAd
             {childrenIds.map((childId: string) => {
               const childNode = allNodes.find((n:any) => n.id === childId);
               if (!childNode) return null;
-              // Find grandchildren
-              const grandChildren = allNodes.filter((n:any) => n.parentId === childId).map((n:any) => n.id);
+              const grandChildren = childrenById.get(childId) ?? [];
               
               return (
                 <TreeItem 
@@ -69,6 +78,7 @@ const TreeItem = ({ node, childrenIds, allNodes, depth, onSelect, activeId, onAd
                   node={childNode} 
                   childrenIds={grandChildren} 
                   allNodes={allNodes}
+                  childrenById={childrenById}
                   depth={depth + 1}
                   onSelect={onSelect}
                   activeId={activeId}
@@ -89,20 +99,31 @@ export default function HierarchyEditor({ data, activeId, onSelect, onAdd, onDel
   // Transform Flat Data to Tree Structure
   const treeData = useMemo(() => {
     const nodeMap = new Map();
+    const childrenById = new Map<string, string[]>();
     // 1. Map all nodes
-    data.nodes.forEach(n => nodeMap.set(n.id, { ...n, children: [] }));
+    data.nodes.forEach(n => {
+      nodeMap.set(n.id, { ...n, children: [] });
+      childrenById.set(n.id, []);
+    });
     
     // 2. Map relationships
-    data.edges.forEach(e => {
+    data.edges.filter(isParentChildEdge).forEach(e => {
       const parent = nodeMap.get(e.source);
       if (parent) parent.children.push(e.target);
+      if (childrenById.has(e.source)) {
+        childrenById.set(e.source, [...(childrenById.get(e.source) ?? []), e.target]);
+      }
+    });
+
+    Array.from(childrenById.entries()).forEach(([key, list]) => {
+      childrenById.set(key, Array.from(new Set(list)));
     });
 
     // 3. Find Roots (nodes with no incoming edges)
-    const targets = new Set(data.edges.map(e => e.target));
+    const targets = new Set(data.edges.filter(isParentChildEdge).map(e => e.target));
     const roots = data.nodes.filter(n => !targets.has(n.id)).map(n => nodeMap.get(n.id));
     
-    return { roots, nodeMap };
+    return { roots, nodeMap, childrenById };
   }, [data]);
 
   // Filter Logic
@@ -155,6 +176,7 @@ export default function HierarchyEditor({ data, activeId, onSelect, onAdd, onDel
                 node={root} 
                 childrenIds={root.children}
                 allNodes={data.nodes} // Need flat list for lookups
+                childrenById={treeData.childrenById}
                 depth={0} 
                 onSelect={onSelect}
                 activeId={activeId}

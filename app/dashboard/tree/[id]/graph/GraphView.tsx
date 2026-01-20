@@ -26,6 +26,7 @@ import { CanvasEdges } from "./CanvasEdges";
 import { useLayout } from "./useLayout";
 import { LayoutMode } from "./layout";
 import { useFocusGraph } from "../useFocusMode";
+import { isParentChildEdge } from "./relationships";
 
 const nodeTypes = { person: NodeCard };
 
@@ -69,6 +70,11 @@ export default function GraphView({
   const [showSearch, setShowSearch] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [geometry, setGeometry] = useState<any[]>([]);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+  } | null>(null);
 
   // --- SYNC activeId from parent ---
   useEffect(() => {
@@ -104,7 +110,7 @@ export default function GraphView({
 
       (data?.edges || []).forEach((e: any) => {
         // ancestor chain only: parent -> child edges (follow e.target === curr)
-        if (e?.target === curr) {
+        if (isParentChildEdge(e) && e?.target === curr) {
           if (e?.source) ids.add(e.source);
           if (e?.id) ids.add(e.id);
           queue.push(e.source);
@@ -165,8 +171,7 @@ export default function GraphView({
     });
   }, [data?.nodes]);
 
-  const effectiveLayoutMode: LayoutMode = mode === "editor" ? "vertical" : layoutMode;
-  const layoutResult = useLayout(workerInput, data?.edges || [], effectiveLayoutMode);
+  const layoutResult = useLayout(workerInput, data?.edges || [], layoutMode, activeId || selectedId);
 
   // --- FINAL NODE MERGE (RESTORED: semantic filter + highlight flags + zIndex) ---
   useEffect(() => {
@@ -258,6 +263,7 @@ export default function GraphView({
     (_: any, node: Node) => {
       setSelectedId(node.id);
       onOpenSidebar(node.id);
+      setContextMenu(null);
 
       // Zoom to High Detail on click
       if (Number.isFinite(node.position.x) && Number.isFinite(node.position.y)) {
@@ -272,7 +278,34 @@ export default function GraphView({
 
   const onPaneClick = useCallback(() => {
     setSelectedId(null);
+    setContextMenu(null);
   }, []);
+
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      setSelectedId(node.id);
+
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      const x = rect ? event.clientX - rect.left : event.clientX;
+      const y = rect ? event.clientY - rect.top : event.clientY;
+
+      setContextMenu({ x, y, nodeId: node.id });
+    },
+    []
+  );
+
+  const runRename = useCallback(
+    (id: string) => {
+      if (!onRename) return;
+      const current = nodes.find((n: any) => n.id === id)?.data?.label ?? "";
+      const next = window.prompt("Rename person", current);
+      if (next && next.trim()) {
+        onRename(id, next.trim());
+      }
+    },
+    [nodes, onRename]
+  );
 
   return (
     <div
@@ -299,8 +332,13 @@ export default function GraphView({
         onNodesChange={onNodesChange}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onPaneContextMenu={(event) => {
+          event.preventDefault();
+          setContextMenu(null);
+        }}
         onNodeMouseEnter={(_, node) => setHoveredNode(node.id)}
         onNodeMouseLeave={() => setHoveredNode(null)}
+        onNodeContextMenu={onNodeContextMenu}
         minZoom={0.01}
         maxZoom={4}
         onlyRenderVisibleElements={true}
@@ -333,41 +371,39 @@ export default function GraphView({
           </div>
         </Panel>
 
-        {/* Layout menu (View only) - RESTORED full options */}
-        {mode === "view" && (
-          <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
-                Layout
-              </div>
-
-              <LayoutButton
-                active={layoutMode === "vertical"}
-                onClick={() => setLayoutMode("vertical")}
-                icon={<ArrowDown size={16} />}
-                label="Descendancy"
-              />
-              <LayoutButton
-                active={layoutMode === "horizontal"}
-                onClick={() => setLayoutMode("horizontal")}
-                icon={<ArrowRight size={16} />}
-                label="Landscape"
-              />
-              <LayoutButton
-                active={layoutMode === "circular"}
-                onClick={() => setLayoutMode("circular")}
-                icon={<Circle size={16} />}
-                label="Circular"
-              />
-              <LayoutButton
-                active={layoutMode === "fan"}
-                onClick={() => setLayoutMode("fan")}
-                icon={<Fan size={16} />}
-                label="Fan Chart"
-              />
+        {/* Layout menu (RESTORED full options) */}
+        <Panel position="top-right" className="mt-4 mr-4">
+          <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
+              Layout
             </div>
-          </Panel>
-        )}
+
+            <LayoutButton
+              active={layoutMode === "vertical"}
+              onClick={() => setLayoutMode("vertical")}
+              icon={<ArrowDown size={16} />}
+              label="Descendancy"
+            />
+            <LayoutButton
+              active={layoutMode === "horizontal"}
+              onClick={() => setLayoutMode("horizontal")}
+              icon={<ArrowRight size={16} />}
+              label="Landscape"
+            />
+            <LayoutButton
+              active={layoutMode === "circular"}
+              onClick={() => setLayoutMode("circular")}
+              icon={<Circle size={16} />}
+              label="Circular"
+            />
+            <LayoutButton
+              active={layoutMode === "fan"}
+              onClick={() => setLayoutMode("fan")}
+              icon={<Fan size={16} />}
+              label="Fan Chart"
+            />
+          </div>
+        </Panel>
 
         {/* Search */}
         <AnimatePresence>
@@ -413,6 +449,91 @@ export default function GraphView({
           )}
         </AnimatePresence>
       </ReactFlow>
+
+      {contextMenu && (
+        <div
+          className="absolute z-50 bg-white shadow-xl border border-gray-200 rounded-xl py-2 min-w-[180px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => {
+              onOpenSidebar(contextMenu.nodeId);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+          >
+            Open profile
+          </button>
+          <button
+            onClick={() => {
+              const target = nodes.find((n: any) => n.id === contextMenu.nodeId);
+              if (
+                target &&
+                Number.isFinite(target.position.x) &&
+                Number.isFinite(target.position.y)
+              ) {
+                setCenter(target.position.x + 130, target.position.y + 80, {
+                  zoom: 1.5,
+                  duration: 800,
+                });
+              }
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+          >
+            Center on node
+          </button>
+          {mode === "editor" && (
+            <>
+              <div className="my-1 h-px bg-gray-100" />
+              {onAddParent && (
+                <button
+                  onClick={() => {
+                    onAddParent(contextMenu.nodeId);
+                    setContextMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  Add parent
+                </button>
+              )}
+              {onAddChild && (
+                <button
+                  onClick={() => {
+                    onAddChild(contextMenu.nodeId);
+                    setContextMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  Add child
+                </button>
+              )}
+              {onAddPartner && (
+                <button
+                  onClick={() => {
+                    onAddPartner(contextMenu.nodeId);
+                    setContextMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  Add partner
+                </button>
+              )}
+              {onRename && (
+                <button
+                  onClick={() => {
+                    runRename(contextMenu.nodeId);
+                    setContextMenu(null);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                >
+                  Rename
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

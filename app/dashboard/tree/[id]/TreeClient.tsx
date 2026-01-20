@@ -75,7 +75,17 @@ export default function TreeClient({ treeId, initialData }: TreeClientProps) {
       const { error: eErr1 } = await supabase.from("edges").insert(edge);
       if (!eErr1) return;
 
-      // If schema rejects unknown column(s), retry with minimal shape.
+      // If schema rejects unknown column(s), retry with common alternate fields.
+      if (edge.kind && !edge.type) {
+        const typeFallback: DbEdge = {
+          ...edge,
+          type: edge.kind,
+        };
+        const { error: eErr2 } = await supabase.from("edges").insert(typeFallback);
+        if (!eErr2) return;
+      }
+
+      // Final fallback: minimal shape only.
       const minimal: DbEdge = {
         id: edge.id,
         tree_id: edge.tree_id,
@@ -83,8 +93,8 @@ export default function TreeClient({ treeId, initialData }: TreeClientProps) {
         target: edge.target,
       };
 
-      const { error: eErr2 } = await supabase.from("edges").insert(minimal);
-      if (eErr2) throw eErr2;
+      const { error: eErr3 } = await supabase.from("edges").insert(minimal);
+      if (eErr3) throw eErr3;
     },
     [supabase]
   );
@@ -230,6 +240,8 @@ export default function TreeClient({ treeId, initialData }: TreeClientProps) {
         source: personId,
         target: newNodeId,
         kind: "partner", // will fallback if column doesn't exist
+        type: "partner",
+        data: { kind: "partner" },
       };
 
       await saveNodeAndEdge(newNode, partnerEdge);
