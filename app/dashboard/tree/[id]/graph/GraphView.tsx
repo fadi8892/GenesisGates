@@ -277,8 +277,11 @@ export default function GraphView({
   return (
     <div
       ref={wrapperRef}
-      className="w-full h-full bg-[#F5F5F7] relative overflow-hidden font-sans"
+      className="w-full h-full bg-[#05060E] relative overflow-hidden font-sans"
     >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(96,126,255,0.18),_transparent_45%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,_rgba(127,210,255,0.15),_transparent_35%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(120deg,_rgba(9,12,24,0.9),_rgba(7,10,20,0.95))]" />
       <CanvasEdges
         geometry={geometry}
         cam={{ x: viewport.x, y: viewport.y, z: viewport.zoom }}
@@ -309,16 +312,16 @@ export default function GraphView({
         elementsSelectable={true}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#000" gap={40} size={1} style={{ opacity: 0.05 }} />
+        <Background color="#21304D" gap={48} size={1} style={{ opacity: 0.2 }} />
 
         {/* Bottom dock */}
         <Panel position="bottom-center" className="mb-8">
-          <div className="glass-panel rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-all hover:scale-105">
+          <div className="rounded-full p-1.5 flex items-center gap-1 shadow-2xl transition-all hover:scale-[1.03] bg-[#0b1224]/90 border border-white/10 backdrop-blur-xl">
             <ControlButton
               onClick={() => setShowSearch(!showSearch)}
               icon={<Search size={18} />}
             />
-            <div className="w-px h-4 bg-black/10 mx-1" />
+            <div className="w-px h-4 bg-white/10 mx-1" />
             <ControlButton
               onClick={() => {
                 setSelectedId(null);
@@ -327,7 +330,7 @@ export default function GraphView({
               icon={<RotateCcw size={16} />}
               label="RESET"
             />
-            <div className="w-px h-4 bg-black/10 mx-1" />
+            <div className="w-px h-4 bg-white/10 mx-1" />
             <ControlButton onClick={() => zoomOut()} icon={<Minus size={18} />} />
             <ControlButton onClick={() => zoomIn()} icon={<Plus size={18} />} />
           </div>
@@ -336,8 +339,8 @@ export default function GraphView({
         {/* Layout menu (View only) - RESTORED full options */}
         {mode === "view" && (
           <Panel position="top-right" className="mt-4 mr-4">
-            <div className="glass-panel rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[160px]">
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#86868B]">
+            <div className="rounded-2xl p-2 flex flex-col gap-1 shadow-lg min-w-[170px] bg-[#0b1224]/90 border border-white/10 backdrop-blur-xl">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-[#9AA4C2]">
                 Layout
               </div>
 
@@ -377,14 +380,14 @@ export default function GraphView({
                 initial={{ y: -20, opacity: 0, scale: 0.95 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
                 exit={{ y: -10, opacity: 0, scale: 0.95 }}
-                className="glass-panel p-2 rounded-xl shadow-xl backdrop-blur-3xl"
+                className="p-2 rounded-2xl shadow-xl backdrop-blur-3xl bg-[#0b1224]/90 border border-white/10"
               >
                 <div className="flex items-center px-3">
-                  <Search className="w-5 h-5 text-gray-400 mr-2" />
+                  <Search className="w-5 h-5 text-[#9AA4C2] mr-2" />
                   <input
                     autoFocus
                     placeholder="Search family..."
-                    className="bg-transparent text-lg text-[#1D1D1F] placeholder:text-[#86868B] outline-none py-3 w-80 font-medium"
+                    className="bg-transparent text-lg text-white placeholder:text-[#9AA4C2] outline-none py-3 w-80 font-medium"
                     onChange={(e) => {
                       const term = e.target.value.toLowerCase().trim();
                       if (!term) return;
@@ -421,11 +424,11 @@ function ControlButton({ onClick, icon, label }: any) {
   return (
     <button
       onClick={onClick}
-      className="p-3 rounded-full hover:bg-black/5 text-[#1D1D1F] transition-colors flex items-center gap-2 group active:scale-90"
+      className="p-3 rounded-full hover:bg-white/10 text-white/90 transition-colors flex items-center gap-2 group active:scale-95"
     >
       {icon}
       {label && (
-        <span className="text-[11px] font-bold tracking-widest opacity-60 group-hover:opacity-100 transition-opacity">
+        <span className="text-[10px] font-bold tracking-[0.35em] opacity-60 group-hover:opacity-100 transition-opacity">
           {label}
         </span>
       )}
@@ -439,8 +442,8 @@ function LayoutButton({ onClick, icon, label, active }: any) {
       onClick={onClick}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-300 w-full text-left ${
         active
-          ? "bg-white shadow-md text-[#0071E3]"
-          : "text-[#86868B] hover:bg-black/5 hover:text-[#1D1D1F]"
+          ? "bg-white/10 shadow-md text-white border border-white/20"
+          : "text-[#9AA4C2] hover:bg-white/5 hover:text-white"
       }`}
     >
       {icon} {label}
