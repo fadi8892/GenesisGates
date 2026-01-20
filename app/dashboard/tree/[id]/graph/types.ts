@@ -42,6 +42,8 @@ export type Edge = {
   target: NodeId;
 
   type?: string | null;
+  kind?: string | null;
+  data?: Record<string, any> | null;
 };
 
 export type GraphData = {

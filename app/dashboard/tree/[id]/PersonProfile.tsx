@@ -7,6 +7,7 @@ import {
   Baby, ScrollText, Users, Network, ExternalLink, RefreshCw
 } from "lucide-react";
 import type { GraphData } from "./graph/types";
+import { isParentChildEdge } from "./graph/relationships";
 
 // --- HELPERS ---
 const getPerson = (data: GraphData, id: string) => data.nodes.find(n => n.id === id);
@@ -15,6 +16,7 @@ const getRelatives = (data: GraphData, id: string) => {
     const children: any[] = [];
     
     data.edges.forEach(e => {
+        if (!isParentChildEdge(e)) return;
         if (e.target === id) parents.push(getPerson(data, e.source));
         if (e.source === id) children.push(getPerson(data, e.target));
     });

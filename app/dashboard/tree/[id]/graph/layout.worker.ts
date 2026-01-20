@@ -2,6 +2,8 @@
  * GENESIS GATES: MULTI-MODE LAYOUT WORKER (Feature-Preserving + Tidy/Radial Add-on)
  */
 
+import { isParentChildEdge } from "./relationships";
+
 const CONFIG = {
   NODE_WIDTH: 260,
   NODE_HEIGHT: 160,
@@ -35,13 +37,6 @@ type NodeLayout = {
 };
 
 type Family = { parents: string[]; children: string[] };
-
-function isParentChildEdge(ed: any) {
-  const kind = (ed?.kind ?? ed?.type ?? "").toString().toLowerCase();
-  if (!kind) return true;
-  if (kind === "partner" || kind === "spouse" || kind === "marriage") return false;
-  return true;
-}
 
 self.onmessage = (e: MessageEvent) => {
   const { nodes, edges, mode, rootId } = e.data as {

@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function useLayout(nodes: any[], edges: any[], mode: string = 'vertical') {
+export function useLayout(
+  nodes: any[],
+  edges: any[],
+  mode: string = 'vertical',
+  rootId?: string | null
+) {
   // Store both nodes and the line geometry
   const [result, setResult] = useState<{ nodes: any[], geometry: any[] }>({ nodes: [], geometry: [] });
   const workerRef = useRef<Worker | null>(null);
@@ -24,10 +29,11 @@ export function useLayout(nodes: any[], edges: any[], mode: string = 'vertical')
       workerRef.current.postMessage({
         nodes: nodes.map(n => ({ id: n.id, ...n })), 
         edges,
-        mode
+        mode,
+        rootId: rootId ?? null,
       });
     }
-  }, [nodes, edges, mode]);
+  }, [nodes, edges, mode, rootId]);
 
   return result;
 }
